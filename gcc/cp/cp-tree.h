@@ -196,6 +196,7 @@ enum cp_tree_index
     CPTI_LANG_NAME_C,
     CPTI_LANG_NAME_CPLUSPLUS,
 
+    CPTI_AUTO_EXCEPT_SPEC,
     CPTI_EMPTY_EXCEPT_SPEC,
     CPTI_NOEXCEPT_TRUE_SPEC,
     CPTI_NOEXCEPT_FALSE_SPEC,
@@ -352,6 +353,7 @@ extern GTY(()) tree cp_global_trees[CPTI_MAX];
 /* Exception specifiers used for throw(), noexcept(true),
    noexcept(false) and deferred noexcept.  We rely on these being
    uncloned.  */
+#define auto_except_spec		cp_global_trees[CPTI_AUTO_EXCEPT_SPEC]
 #define empty_except_spec		cp_global_trees[CPTI_EMPTY_EXCEPT_SPEC]
 #define noexcept_true_spec		cp_global_trees[CPTI_NOEXCEPT_TRUE_SPEC]
 #define noexcept_false_spec		cp_global_trees[CPTI_NOEXCEPT_FALSE_SPEC]
@@ -2120,6 +2122,22 @@ struct named_label_hash : ggc_remove <named_label_entry *>
 
 /* Global state pertinent to the current function.  */
 
+struct GTY(()) cp_eh_scope {
+  tree in_flight_exception;
+  tree current_list; // for accumulating outstanding exceptions
+  tree unhandled_list; // handlers will remove types they handle from here, the rest is used for catch(auto)
+  cp_eh_scope *next;
+};
+
+void push_eh_scope(tree in_flight);
+void pop_eh_scope(bool discard = false);
+void add_eh_type(tree);
+void remove_eh_type(tree);
+void dump_eh_spec_into_scope (tree spec);
+bool check_eh_against_spec(tree types, tree spec);
+tree derive_eh_spec();
+
+
 struct GTY(()) language_function {
   struct c_language_function base;
 
@@ -2146,6 +2164,7 @@ struct GTY(()) language_function {
   hash_table<named_label_hash> *x_named_labels;
 
   cp_binding_level *bindings;
+  cp_eh_scope *eh_chain;
 
   /* Tracking possibly infinite loops.  This is a vec<tree> only because
      vec<bool> doesn't work with gtype.  */
@@ -2210,6 +2229,7 @@ struct GTY(()) language_function {
 /* Set to 0 at beginning of a function definition, set to 1 if we see an
    obvious infinite loop.  This can have false positives and false
    negatives, so it should only be used as a heuristic.  */
+#define current_function_eh_scope cp_function_chain->eh_chain
 
 #define current_function_infinite_loop cp_function_chain->infinite_loop
 

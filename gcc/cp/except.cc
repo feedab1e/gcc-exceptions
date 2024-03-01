@@ -41,6 +41,207 @@ static tree do_allocate_exception (tree);
 static tree wrap_cleanups_r (tree *, int *, void *);
 static int complete_ptr_ref_or_void_ptr_p (tree, tree);
 static bool is_admissible_throw_operand_or_catch_parameter (tree, bool);
+static bool can_convert_eh (tree to, tree from);
+
+cp_eh_scope *&
+get_current_eh_context()
+{
+  static auto global_context = ggc_cleared_alloc<cp_eh_scope> ();
+  static cp_eh_scope *null = NULL;
+  if (!cfun)
+    return global_context;
+  if(!processing_template_decl)
+    {
+      gcc_assert (cp_function_chain->eh_chain);
+      return cp_function_chain->eh_chain;
+    }
+  else
+    {
+      gcc_assert (!cp_function_chain->eh_chain);
+      return null;
+    }
+}
+
+bool cp_printer (pretty_printer *, text_info *, const char *,
+                        int, bool, bool, bool, bool *, const char **);
+
+int cmp_eh_types (tree a, tree b)
+{
+  if(a == NULL_TREE && b == NULL_TREE)
+    return 0;
+  else if (a == NULL_TREE)
+    return -1;
+  else if (b == NULL_TREE)
+    return 1;
+  TYPE_CHECK (a);
+  TYPE_CHECK (b);
+  if(!can_convert_eh (a, b))
+    return 1;
+  if (!can_convert_eh (b, a))
+    return -1;
+  return 0;
+}
+
+tree sorted_set_concat(int (*cmp)(tree, tree), tree *array, int size)
+{
+  tree ret = NULL_TREE;
+  if (size == 0) return ret;
+  for(;;)
+    {
+      tree min = NULL_TREE;
+      if(array[0])
+        min = TREE_VALUE(array[0]);
+      for (int i = 1; i != size; ++i)
+        if (array[i] && cmp(min, TREE_VALUE (array[i])) < 0)
+          min = TREE_VALUE (array[i]);
+      if (!min)
+        break;
+      for (int i = 0; i != size; ++i)
+        if (array[i] && !cmp(min, TREE_VALUE (array[i])))
+          array[i] = TREE_CHAIN (array[i]);
+      ret = tree_cons(NULL_TREE, min, ret);
+    }
+  return nreverse (ret);
+}
+
+void
+flatten_into_previous_context (cp_eh_scope *current)
+{
+  cp_eh_scope *next = current->next;
+  gcc_assert(next);
+  tree arr[] = {
+    current->current_list,
+    next->current_list,
+    next->unhandled_list
+  };
+  for (auto&& elt : arr)
+    {
+      if (elt == noexcept_false_spec)
+        {
+          next->unhandled_list = noexcept_false_spec;
+          return;
+        }
+      if (elt == noexcept_true_spec)
+        elt = empty_except_spec;
+    }
+  next->unhandled_list = sorted_set_concat (cmp_eh_types, arr, sizeof arr / sizeof arr[0]);
+}
+
+void
+push_eh_scope (tree in_flight)
+{
+  auto& curr = get_current_eh_context ();
+  if (!curr)
+    return;
+  auto* next = ggc_cleared_alloc<cp_eh_scope>();
+  next->in_flight_exception = in_flight;
+  next->next = curr;
+  curr = next;
+}
+
+void
+pop_eh_scope (bool discard)
+{
+  auto& curr = get_current_eh_context ();
+  if (!curr)
+    return;
+  if (curr->next)
+    {
+      if (!discard)
+        flatten_into_previous_context(curr);
+      curr = curr->next;
+    }
+  else
+    curr = 0;
+}
+
+void
+add_eh_type (tree type)
+{
+  auto& curr = get_current_eh_context ();
+  if (!curr)
+    return;
+  auto &current = curr->current_list;
+  if (type == void_type_node || current == noexcept_false_spec)
+    {
+      current = noexcept_false_spec;
+    }
+  tree arr[] = {current, tree_cons(NULL, type, NULL)};
+  if (current == noexcept_true_spec || current == empty_except_spec)
+    current = arr[1];
+  else
+    current = sorted_set_concat (cmp_eh_types, arr, sizeof arr / sizeof arr[0]);
+}
+
+void
+dump_eh_spec_into_scope (tree spec)
+{
+  auto &curr = get_current_eh_context ();
+  if (!curr)
+    return;
+  gcc_assert (spec != auto_except_spec);
+  gcc_assert (spec != noexcept_deferred_spec);
+  if (spec == empty_except_spec || spec == noexcept_true_spec)
+    return;
+  if (spec == noexcept_false_spec)
+    {
+      curr->current_list = spec;
+      return;
+    }
+  tree arr[] = {curr->current_list, spec};
+  curr->current_list = sorted_set_concat (cmp_eh_types, arr, sizeof arr / sizeof arr[0]);
+
+}
+
+void
+remove_eh_type (tree type)
+{
+  tree current = get_current_eh_context ()->unhandled_list;
+  if (current == noexcept_false_spec)
+    return;
+  if (current == noexcept_true_spec)
+    return;
+  if (current == empty_except_spec)
+    return;
+  for (tree prev = current, curr = TREE_CHAIN (prev); curr; prev = curr, curr = TREE_CHAIN (prev))
+    if (can_convert_eh (type, TREE_VALUE (curr)))
+      {
+        TREE_CHAIN (prev) = TREE_CHAIN (curr);
+        curr = prev;
+      }
+}
+
+static bool
+check_single_type_against_spec (tree type, tree spec)
+{
+  tree current = spec;
+  while (current != NULL_TREE)
+    {
+      if (can_convert_eh (TREE_VALUE (current), type)) return true;
+      current = TREE_CHAIN (current);
+    }
+  inform(UNKNOWN_LOCATION, "Cannot catch %qT with any of %qX", type, spec);
+  return false;
+}
+
+bool
+check_eh_against_spec (tree types, tree spec)
+{
+  int i;
+  tree current;
+  for(; types; types = TREE_CHAIN (types))
+    {
+      if (!check_single_type_against_spec (TREE_VALUE (types), spec))
+        return false;
+    }
+  return true;
+}
+
+tree
+derive_eh_spec ()
+{
+  return get_current_eh_context ()->current_list;
+}
 
 /* Sets up all the global eh stuff that needs to be initialized at the
    start of compilation.  */
