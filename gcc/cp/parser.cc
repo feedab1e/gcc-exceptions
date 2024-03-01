@@ -28748,16 +28748,24 @@ cp_parser_exception_specification_opt (cp_parser* parser,
   /* If it's not a `)', then there is a type-id-list.  */
   if (token->type != CPP_CLOSE_PAREN)
     {
+      bool enable_checked_exc = !flag_iso && cxx_dialect >= cxx26;
       /* Types may not be defined in an exception-specification.  */
       saved_message = parser->type_definition_forbidden_message;
       parser->type_definition_forbidden_message
 	= G_("types may not be defined in an exception-specification");
       /* Parse the type-id-list.  */
-      type_id_list = cp_parser_type_id_list (parser);
+      if (enable_checked_exc && cp_parser_is_keyword (token, RID_AUTO))
+        {
+          type_id_list = auto_except_spec;
+          cp_lexer_consume_token (parser->lexer);
+        }
+      else type_id_list = cp_parser_type_id_list (parser);
       /* Restore the saved message.  */
       parser->type_definition_forbidden_message = saved_message;
 
-      if (cxx_dialect >= cxx17)
+      if (enable_checked_exc)
+        /* It's fine */;
+      else if (cxx_dialect >= cxx17)
 	{
 	  error_at (loc, "ISO C++17 does not allow dynamic exception "
 			 "specifications");
