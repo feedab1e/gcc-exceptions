@@ -1625,6 +1625,9 @@ begin_try_block (void)
   tree r = build_stmt (input_location, TRY_BLOCK, NULL_TREE, NULL_TREE);
   add_stmt (r);
   TRY_STMTS (r) = push_stmt_list ();
+
+  push_eh_scope(NULL_TREE);
+
   return r;
 }
 
@@ -1642,6 +1645,9 @@ begin_function_try_block (tree *compound_stmt)
   current_binding_level->artificial = 1;
   r = begin_try_block ();
   FN_TRY_BLOCK_P (r) = 1;
+
+  push_eh_scope(NULL_TREE);
+
   return r;
 }
 
@@ -1652,6 +1658,12 @@ finish_try_block (tree try_block)
 {
   TRY_STMTS (try_block) = pop_stmt_list (TRY_STMTS (try_block));
   TRY_HANDLERS (try_block) = push_stmt_list ();
+  auto &curr = cp_function_chain->eh_chain;
+  gcc_assert ((bool)curr != (bool)processing_template_decl);
+  if (!curr)
+    return;
+  curr->unhandled_list = curr->current_list;
+  curr->current_list = 0;
 }
 
 /* Finish the body of a cleanup try-block, which may be given by
@@ -1692,6 +1704,7 @@ finish_handler_sequence (tree try_block)
 {
   TRY_HANDLERS (try_block) = pop_stmt_list (TRY_HANDLERS (try_block));
   check_handlers (TRY_HANDLERS (try_block));
+  pop_eh_scope();
 }
 
 /* Finish the handler-seq for a function-try-block, given by
@@ -1704,6 +1717,7 @@ finish_function_handler_sequence (tree try_block, tree compound_stmt)
   in_function_try_handler = 0;
   finish_handler_sequence (try_block);
   finish_compound_stmt (compound_stmt);
+  pop_eh_scope();
 }
 
 /* Begin a handler.  Returns a HANDLER if appropriate.  */

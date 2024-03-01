@@ -4775,6 +4775,7 @@ cxx_init_decl_processing (void)
   truthvalue_false_node = boolean_false_node;
   truthvalue_true_node = boolean_true_node;
 
+  auto_except_spec = build_tree_list (auto_identifier, NULL_TREE);
   empty_except_spec = build_tree_list (NULL_TREE, NULL_TREE);
   noexcept_true_spec = build_tree_list (boolean_true_node, NULL_TREE);
   noexcept_false_spec = build_tree_list (boolean_false_node, NULL_TREE);
@@ -17677,6 +17678,8 @@ start_preparsed_function (tree decl1, tree attrs, int flags)
   /* Initialize the language data structures.  Whenever we start
      a new function, we destroy temporaries in the usual way.  */
   cfun->language = ggc_cleared_alloc<language_function> ();
+  if(!processing_template_decl)
+    cfun->language->eh_chain = ggc_cleared_alloc<cp_eh_scope> ();
   current_stmt_tree ()->stmts_are_full_exprs_p = 1;
   current_binding_level = bl;
 
@@ -18300,9 +18303,37 @@ finish_function (bool inline_p)
 
   finish_fname_decls ();
 
-  /* This must come after expand_function_end because cleanups might
-     have declarations (from inline functions) that need to go into
-     this function's blocks.  */
+    /* This must come after expand_function_end because cleanups might
+       have declarations (from inline functions) that need to go into
+       this function's blocks.  */
+    tree node;
+    int i;
+    auto curr_spec = cp_function_chain->eh_chain;
+    gcc_assert ((bool)curr_spec != (bool)processing_template_decl);
+    if (curr_spec)
+      {
+        gcc_assert (curr_spec && !curr_spec->next);
+        tree exc = TYPE_RAISES_EXCEPTIONS (fntype);
+        if (exc == auto_except_spec)
+          {
+            TYPE_RAISES_EXCEPTIONS (fntype) = derive_eh_spec ();
+          }
+        else if (exc == noexcept_true_spec || exc == empty_except_spec)
+          {
+            if (curr_spec->current_list && curr_spec->current_list != noexcept_true_spec && curr_spec->current_list != empty_except_spec)
+              error ("invalid eh spec !!!!");
+          }
+        else if (exc != noexcept_true_spec
+                 && exc != noexcept_false_spec)
+          {
+            if (!check_eh_against_spec (
+              curr_spec->current_list,
+              exc))
+              {
+                error ("invalid eh spec !!!!");
+              }
+          }
+      }
 
   /* If the current binding level isn't the outermost binding level
      for this function, either there is a bug, or we have experienced

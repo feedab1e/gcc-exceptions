@@ -20526,6 +20526,7 @@ tsubst_expr (tree t, tree args, tsubst_flags_t complain, tree in_decl)
 	      }
 	    ret = build_call_a (function, call_args->length (),
 				call_args->address ());
+	    dump_eh_spec_into_scope (function);
 	    /* The thunk location is not interesting.  */
 	    SET_EXPR_LOCATION (ret, UNKNOWN_LOCATION);
 	    CALL_FROM_THUNK_P (ret) = true;

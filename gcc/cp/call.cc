@@ -11023,12 +11023,31 @@ build_cxx_call (tree fn, int nargs, tree *argarray,
 
   /* Remember roughly where this call is.  */
   location_t loc = cp_expr_loc_or_input_loc (fn);
+  tree pfn = fn;
   fn = build_call_a (fn, nargs, argarray);
   SET_EXPR_LOCATION (fn, loc);
 
+  auto pointer_fix = [](tree type)
+    {
+      while(true)
+        switch (TREE_CODE (type))
+          {
+        case FUNCTION_TYPE:
+        case METHOD_TYPE:
+            return type;
+            break;
+        case POINTER_TYPE:
+            type = TREE_TYPE (type);
+            break;
+        default:
+            gcc_assert (false);
+          }
+    };
   fndecl = get_callee_fndecl (fn);
   if (!orig_fndecl)
     orig_fndecl = fndecl;
+  dump_eh_spec_into_scope (
+    TYPE_RAISES_EXCEPTIONS (pointer_fix (TREE_TYPE (pfn))));
 
   /* Check that arguments to builtin functions match the expectations.  */
   if (fndecl

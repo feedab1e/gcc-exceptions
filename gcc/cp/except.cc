@@ -608,6 +608,8 @@ expand_start_catch_block (tree decl)
   else
     type = NULL_TREE;
 
+  remove_eh_type (type);
+  push_eh_scope (type);
   /* Call __cxa_end_catch at the end of processing the exception.  */
   push_eh_cleanup (type);
 
@@ -692,6 +694,7 @@ expand_end_catch_block (void)
       suppress_warning (rethrow);
       finish_expr_stmt (rethrow);
     }
+  pop_eh_scope();
 }
 
 tree
@@ -961,7 +964,10 @@ build_throw (location_t loc, tree exp)
 	 to do them during unwinding.  */
       exp = build1 (CLEANUP_POINT_EXPR, void_type_node, exp);
 
-      throw_type = build_eh_type_type (prepare_eh_type (TREE_TYPE (object)));
+      auto exc_type = prepare_eh_type (TREE_TYPE (object));
+      add_eh_type (exc_type);
+
+      throw_type = build_eh_type_type (exc_type);
 
       cleanup = NULL_TREE;
       if (type_build_dtor_call (TREE_TYPE (object)))
@@ -1006,6 +1012,8 @@ build_throw (location_t loc, tree exp)
 	    apply_tm_attr (rethrow_fn, get_identifier ("transaction_pure"));
 	}
 
+      auto& current_scope = cfun->language->eh_chain;
+      add_eh_type (current_scope->in_flight_exception ?current_scope->in_flight_exception: void_type_node);
       /* ??? Indicate that this function call allows exceptions of the type
 	 of the enclosing catch block (if known).  */
       exp = cp_build_function_call_vec (rethrow_fn, NULL, tf_warning_or_error);

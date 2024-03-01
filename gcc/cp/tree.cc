@@ -2738,7 +2738,8 @@ canonical_eh_spec (tree raises)
   else if (DEFERRED_NOEXCEPT_SPEC_P (raises)
 	   || UNPARSED_NOEXCEPT_SPEC_P (raises)
 	   || uses_template_parms (raises)
-	   || uses_template_parms (TREE_PURPOSE (raises)))
+	   || uses_template_parms (TREE_PURPOSE (raises))
+	   || raises == auto_except_spec)
     /* Keep a dependent or deferred exception specification.  */
     return raises;
   else if (nothrow_spec_p (raises))
