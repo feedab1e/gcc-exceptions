@@ -147,19 +147,38 @@ import tempfile
 import gdb
 import gdb.printing
 import gdb.types
+import gdb.events
 
-# Convert "enum tree_code" (tree.def and tree.h) to a dict:
-tree_code_dict = gdb.types.make_enum_dict(gdb.lookup_type('enum tree_code'))
+def init_globals(event):
+    # Convert "enum tree_code" (tree.def and tree.h) to a dict:
+    global tree_code_dict
+    tree_code_dict = gdb.types.make_enum_dict(gdb.lookup_type('enum tree_code'))
+    global tree_type_node
+    tree_type_node = gdb.lookup_type('union tree_node')
 
-# ...and look up specific values for use later:
-IDENTIFIER_NODE = tree_code_dict['IDENTIFIER_NODE']
-TYPE_DECL = tree_code_dict['TYPE_DECL']
-SSA_NAME = tree_code_dict['SSA_NAME']
+    # ...and look up specific values for use later:
+    global IDENTIFIER_NODE
+    IDENTIFIER_NODE = tree_code_dict['IDENTIFIER_NODE']
+    global TYPE_DECL
+    TYPE_DECL = tree_code_dict['TYPE_DECL']
+    global SSA_NAME
+    SSA_NAME = tree_code_dict['SSA_NAME']
 
-# Similarly for "enum tree_code_class" (tree.h):
-tree_code_class_dict = gdb.types.make_enum_dict(gdb.lookup_type('enum tree_code_class'))
-tcc_type = tree_code_class_dict['tcc_type']
-tcc_declaration = tree_code_class_dict['tcc_declaration']
+    # tree_node_structure_enum
+    #
+
+    global tree_structure
+    tree_structure = gdb.lookup_global_symbol('tree_contains_struct').value()
+
+    # Similarly for "enum tree_code_class" (tree.h):
+    global tree_code_class_dict
+    tree_code_class_dict = gdb.types.make_enum_dict(gdb.lookup_type('enum tree_code_class'))
+    global tcc_type
+    tcc_type = tree_code_class_dict['tcc_type']
+    global tcc_declaration
+    tcc_declaration = tree_code_class_dict['tcc_declaration']
+#print(gdb.events)
+gdb.events.new_thread.connect(init_globals)
 
 # Python3 has int() with arbitrary precision (bignum).  Python2 int() is 32-bit
 # on 32-bit hosts but remote targets may have 64-bit pointers there; Python2
@@ -210,6 +229,31 @@ class TreePrinter:
     def __init__ (self, gdbval):
         self.gdbval = gdbval
         self.node = Tree(gdbval)
+
+    def num_children(self):
+        if intptr(self.gdbval) == 0:
+            return 0
+        val_TREE_CODE = self.node.TREE_CODE()
+        if val_TREE_CODE == 0xa5a5:
+            return 0
+        count = 0
+        for n in range(64):
+            contains = 1 if tree_structure[val_TREE_CODE][n] else 0
+            count = count + contains
+        #print(count)
+        return count
+
+    def children (self):
+        yield ('[type]', gdb.Value(self.to_string()).cast(gdb.lookup_type('const char *')))
+        if self.num_children() == 0:
+            return
+        val_TREE_CODE = self.node.TREE_CODE()
+        if val_TREE_CODE == 0xa5a5:
+            return
+        for i, field in enumerate(tree_type_node.fields()):
+            #print(i, field.name)
+            if 1 if tree_structure[val_TREE_CODE][i] else 0:
+                yield (field.name, self.node.gdbval[field])
 
     def to_string (self):
         # like gcc/print-tree.c:print_node_brief
