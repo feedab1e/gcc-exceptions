@@ -28944,31 +28944,24 @@ cp_parser_handler (cp_parser* parser)
   parser->auto_is_implicit_function_template_parm_p = 1;
   declaration = cp_parser_exception_declaration (parser);
   parens.require_close (parser);
+  handler = begin_handler ();
+  finish_handler_parms (declaration, handler);
+  cp_parser_compound_statement (parser, NULL, BCS_NORMAL, false);
+  finish_handler (handler);
   if (TEMPLATE_PARM_P (TREE_TYPE (declaration)))
     {
-      handler = begin_handler ();
-      finish_handler_parms (declaration, handler);
-      cp_parser_compound_statement (parser, NULL, BCS_NORMAL, false);
-      finish_handler (handler);
       finish_fully_implicit_template(parser, NULL_TREE);
-      auto yesterhandler = tsi_last (stmt_list_stack->last ());
-      tsi_delink (&yesterhandler);
-      tree args = make_tree_vec (1);
-      for(tree curr = get_current_eh_context()->unhandled_list; curr; curr = TREE_CHAIN (curr))
-      {
-        TREE_VEC_ELT (args, 0) = TREE_VALUE(curr);
-        local_specialization_stack s;
-        tree result = tsubst_stmt (handler, args, tf_warning_or_error, NULL_TREE);
-      }
-    }
-  else
-    {
-      handler = begin_handler ();
-      finish_handler_parms (declaration, handler);
-      cp_parser_compound_statement (parser, NULL, BCS_NORMAL, false);
-      finish_handler (handler);
     }
   leave_scope ();
+  if (TEMPLATE_PARM_P (TREE_TYPE (declaration)) && !processing_template_decl)
+    {
+      // get rid of the current handler since it's templated and
+      // we are going to spawn non-templated versions of it
+      auto templated_handler = tsi_last (stmt_list_stack->last ());
+      tsi_delink (&templated_handler);
+      local_specialization_stack x;
+      tsubst_stmt (handler, NULL_TREE, tf_warning_or_error, NULL_TREE);
+    }
 }
 
 /* Parse an exception-declaration.
