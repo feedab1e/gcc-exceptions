@@ -16787,6 +16787,7 @@ cp_parser_decltype_expr (cp_parser *parser,
   cp_token *id_expr_start_token;
   tree expr;
 
+  push_eh_scope (NULL_TREE);
   /* First, try parsing an id-expression.  */
   id_expr_start_token = cp_lexer_peek_token (parser->lexer);
   cp_parser_parse_tentatively (parser);
@@ -16838,6 +16839,7 @@ cp_parser_decltype_expr (cp_parser *parser,
 	      cp_parser_parse_definitely (parser);
 	      cp_parser_error (parser, error_msg);
 	      id_expression_or_member_access_p = true;
+	      pop_eh_scope (true);
 	      return error_mark_node;
 	    }
         }
@@ -16882,6 +16884,7 @@ cp_parser_decltype_expr (cp_parser *parser,
       expr = cp_parser_expression (parser, /*pidk=*/NULL, /*cast_p=*/false,
 				   /*decltype_p=*/true);
     }
+  pop_eh_scope (true);
 
   return expr;
 }

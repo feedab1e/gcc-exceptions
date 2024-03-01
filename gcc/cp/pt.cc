@@ -16678,9 +16678,10 @@ tsubst (tree t, tree args, tsubst_flags_t complain, tree in_decl)
 
 	++cp_unevaluated_operand;
 	++c_inhibit_evaluation_warnings;
-
+        push_eh_scope (NULL_TREE);
 	type = tsubst_expr (DECLTYPE_TYPE_EXPR (t), args,
 			    complain|tf_decltype, in_decl);
+        pop_eh_scope (true);
 
 	--cp_unevaluated_operand;
 	--c_inhibit_evaluation_warnings;
