@@ -1418,6 +1418,7 @@ nothrow_spec_p (const_tree spec)
 	      || spec == noexcept_false_spec
 	      || TREE_PURPOSE (spec) == error_mark_node
 	      || UNPARSED_NOEXCEPT_SPEC_P (spec)
+	      || spec == auto_except_spec
 	      || processing_template_decl);
 
   return false;
