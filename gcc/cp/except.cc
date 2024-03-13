@@ -112,7 +112,7 @@ flatten_into_previous_context (cp_eh_scope *current)
   tree arr[] = {
     current->current_list,
     next->current_list,
-    next->unhandled_list
+    current->unhandled_list
   };
   for (auto&& elt : arr)
     {
@@ -124,7 +124,7 @@ flatten_into_previous_context (cp_eh_scope *current)
       if (elt == noexcept_true_spec)
         elt = empty_except_spec;
     }
-  next->unhandled_list = sorted_set_concat (cmp_eh_types, arr, sizeof arr / sizeof arr[0]);
+  next->current_list = sorted_set_concat (cmp_eh_types, arr, sizeof arr / sizeof arr[0]);
 }
 
 void
