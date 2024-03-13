@@ -230,7 +230,7 @@ class TreePrinter:
         self.gdbval = gdbval
         self.node = Tree(gdbval)
 
-    def num_children(self):
+    def _num_children(self):
         if intptr(self.gdbval) == 0:
             return 0
         val_TREE_CODE = self.node.TREE_CODE()
@@ -245,11 +245,18 @@ class TreePrinter:
 
     def children (self):
         yield ('[type]', gdb.Value(self.to_string()).cast(gdb.lookup_type('const char *')))
-        if self.num_children() == 0:
+        if self._num_children() == 0:
             return
         val_TREE_CODE = self.node.TREE_CODE()
         if val_TREE_CODE == 0xa5a5:
             return
+        curr = self.gdbval
+        n = 0
+        while intptr(curr) != 0:
+            yield (f'[{n}]', curr['list']['value'])
+            n+=1
+            curr = curr['common']['chain']
+
         for i, field in enumerate(tree_type_node.fields()):
             #print(i, field.name)
             if 1 if tree_structure[val_TREE_CODE][i] else 0:
