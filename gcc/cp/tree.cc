@@ -2789,7 +2789,8 @@ build_cp_fntype_variant (tree type, cp_ref_qualifier rqual,
   /* Canonicalize the exception specification.  */
   tree cr = flag_noexcept_type ? canonical_eh_spec (raises) : NULL_TREE;
 
-  if (TYPE_STRUCTURAL_EQUALITY_P (type))
+  if (TYPE_STRUCTURAL_EQUALITY_P (type) || !(raises == empty_except_spec
+      || raises == noexcept_true_spec))
     /* Propagate structural equality. */
     SET_TYPE_STRUCTURAL_EQUALITY (v);
   else if (TYPE_CANONICAL (type) != type || cr != raises || late)
