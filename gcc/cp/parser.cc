@@ -28935,13 +28935,31 @@ cp_parser_handler (cp_parser* parser)
 
   cp_parser_require_keyword (parser, RID_CATCH, RT_CATCH);
   matching_parens parens;
+
   parens.require_open (parser);
+  begin_scope (sk_function_parms, NULL);
+  auto _ = make_temp_override (parser->auto_is_implicit_function_template_parm_p);
+  parser->auto_is_implicit_function_template_parm_p = 1;
   declaration = cp_parser_exception_declaration (parser);
   parens.require_close (parser);
-  handler = begin_handler ();
-  finish_handler_parms (declaration, handler);
-  cp_parser_compound_statement (parser, NULL, BCS_NORMAL, false);
-  finish_handler (handler);
+  if (TEMPLATE_PARM_P (TREE_TYPE (declaration)))
+    {
+      tree catch_body = push_stmt_list ();
+      handler = begin_handler ();
+      finish_handler_parms (declaration, handler);
+      cp_parser_compound_statement (parser, NULL, BCS_NORMAL, false);
+      finish_handler (handler);
+      catch_body = pop_stmt_list (catch_body);
+      finish_fully_implicit_template(parser, NULL_TREE);
+    }
+  else
+    {
+      handler = begin_handler ();
+      finish_handler_parms (declaration, handler);
+      cp_parser_compound_statement (parser, NULL, BCS_NORMAL, false);
+      finish_handler (handler);
+    }
+  leave_scope ();
 }
 
 /* Parse an exception-declaration.
