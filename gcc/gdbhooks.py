@@ -263,7 +263,7 @@ class TreePrinter:
         self.gdbval = gdbval
         self.node = Tree(gdbval)
 
-    def _num_children(self):
+    def num_children(self):
         if intptr(self.gdbval) == 0:
             return 0
         val_TREE_CODE = self.node.TREE_CODE()
@@ -276,7 +276,7 @@ class TreePrinter:
         return count
 
     def children (self):
-        if self._num_children() == 0:
+        if self.num_children() == 0:
             return
         val_TREE_CODE = self.node.TREE_CODE()
         if val_TREE_CODE == 0xa5a5:
