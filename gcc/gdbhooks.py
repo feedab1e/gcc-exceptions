@@ -155,6 +155,8 @@ def init_globals(event):
     tree_code_dict = gdb.types.make_enum_dict(gdb.lookup_type('enum tree_code'))
     global tree_type_node
     tree_type_node = gdb.lookup_type('union tree_node')
+    global tree_operand_length
+    tree_operand_length = gdb.lookup_global_symbol('tree_operand_length').value()
 
     # ...and look up specific values for use later:
     global IDENTIFIER_NODE
@@ -163,6 +165,10 @@ def init_globals(event):
     TYPE_DECL = tree_code_dict['TYPE_DECL']
     global SSA_NAME
     SSA_NAME = tree_code_dict['SSA_NAME']
+    global TREE_LIST
+    TREE_LIST = tree_code_dict['TREE_LIST']
+    global TREE_VEC
+    TREE_VEC = tree_code_dict['TREE_VEC']
 
     # tree_node_structure_enum
     #
@@ -319,6 +325,72 @@ class TreePrinter:
         # etc
         result += '>'
         return result
+
+class TreeStmtListPrinter:
+    "Prints a tree_statement_list part of tree"
+
+    def __init__ (self, gdbval):
+        self.gdbval = gdbval
+
+    def children (self):
+        curr = self.gdbval['head']
+        n = 0
+        while curr:
+            yield (f"[{n}]", curr['stmt'])
+            n += 1
+            curr = curr['next']
+
+
+class TreeExpPrinter:
+    "Prints a tree_exp part of tree"
+
+    def __init__ (self, gdbval):
+        self.gdbval = gdbval
+        self.treeval = gdbval.address.cast(tree_type_node.pointer())
+
+    def num_children(self):
+        return tree_operand_length(self.treeval)
+
+    def children (self):
+        chld = self.num_children()
+        if chld == 0:
+            return
+        curr = self.gdbval
+        for i in range(chld):
+            yield (f'[{i}]', curr['operands'][i])
+
+class TreeListPrinter:
+    "Prints a tree_list part of tree"
+
+    def __init__ (self, gdbval):
+        self.gdbval = gdbval
+
+    def children (self):
+        curr = self.gdbval
+        n = 0
+        while intptr(curr) != 0:
+            yield (f'[{n}]', curr['value'])
+            n+=1
+            curr = curr['common']['chain']
+
+
+class TreeVecPrinter:
+    "Prints a tree_vec part of tree"
+
+    def __init__ (self, gdbval):
+        self.gdbval = gdbval
+
+    def num_children(self):
+        return self.gdbval['common']['typed']['base']['u']['length']
+
+    def children (self):
+        chld = self.num_children()
+        if chld == 0:
+            return
+        curr = self.gdbval
+        for i in range(chld):
+            yield (f'[{i}]', curr['a'][i])
+
 
 ######################################################################
 # Callgraph pretty-printers
