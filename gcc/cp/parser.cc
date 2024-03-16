@@ -28944,12 +28944,10 @@ cp_parser_handler (cp_parser* parser)
   parens.require_close (parser);
   if (TEMPLATE_PARM_P (TREE_TYPE (declaration)))
     {
-      tree catch_body = push_stmt_list ();
       handler = begin_handler ();
       finish_handler_parms (declaration, handler);
       cp_parser_compound_statement (parser, NULL, BCS_NORMAL, false);
       finish_handler (handler);
-      catch_body = pop_stmt_list (catch_body);
       finish_fully_implicit_template(parser, NULL_TREE);
     }
   else
