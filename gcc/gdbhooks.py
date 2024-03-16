@@ -679,6 +679,14 @@ def build_pretty_printer():
     pp = GdbPrettyPrinters('gcc')
     pp.add_printer_for_types(['tree', 'const_tree', 'tree_node *', 'const tree_node *'],
                              'tree', TreePrinter)
+    pp.add_printer_for_types(['tree_exp'],
+                             'tree_exp', TreeExpPrinter)
+    pp.add_printer_for_types(['tree_list'],
+                             'tree_list', TreeListPrinter)
+    pp.add_printer_for_types(['tree_statement_list'],
+                             'tree_statement_list', TreeStmtListPrinter)
+    pp.add_printer_for_types(['tree_vec'],
+                             'tree_vec', TreeVecPrinter)
     pp.add_printer_for_types(['cgraph_node *', 'varpool_node *', 'symtab_node *'],
                              'symtab_node', SymtabNodePrinter)
     pp.add_printer_for_types(['cgraph_edge *'],
