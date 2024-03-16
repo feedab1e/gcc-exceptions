@@ -158,6 +158,23 @@ def init_globals(event):
     global tree_operand_length
     tree_operand_length = gdb.lookup_global_symbol('tree_operand_length').value()
 
+    # constexpr inline enum tree_code_class tree_code_type[] = { ... };
+    # #define TREE_CODE_CLASS(CODE)	tree_code_type[(int) (CODE)]
+    # or
+    # template <int N>
+    # struct tree_code_type_tmpl {
+    # static constexpr enum tree_code_class tree_code_type[] = { ... };
+    # }; };
+    # #define TREE_CODE_CLASS(CODE) \
+    # tree_code_type_tmpl <0>::tree_code_type[(int) (CODE)]
+    global val_tree_code_type
+    try:
+        val_tree_code_type = gdb.parse_and_eval('tree_code_type')
+    except:
+        val_tree_code_type = gdb.parse_and_eval('tree_code_type_tmpl<0>::tree_code_type')
+    global val_tree_code_name
+    val_tree_code_name = gdb.parse_and_eval('tree_code_name')
+
     # ...and look up specific values for use later:
     global IDENTIFIER_NODE
     IDENTIFIER_NODE = tree_code_dict['IDENTIFIER_NODE']
@@ -171,8 +188,6 @@ def init_globals(event):
     TREE_VEC = tree_code_dict['TREE_VEC']
 
     # tree_node_structure_enum
-    #
-
     global tree_structure
     tree_structure = gdb.lookup_global_symbol('tree_contains_struct').value()
 
@@ -183,7 +198,7 @@ def init_globals(event):
     tcc_type = tree_code_class_dict['tcc_type']
     global tcc_declaration
     tcc_declaration = tree_code_class_dict['tcc_declaration']
-#print(gdb.events)
+
 gdb.events.new_thread.connect(init_globals)
 
 # Python3 has int() with arbitrary precision (bignum).  Python2 int() is 32-bit
@@ -268,28 +283,11 @@ class TreePrinter:
 
         val_TREE_CODE = self.node.TREE_CODE()
 
-        # constexpr inline enum tree_code_class tree_code_type[] = { ... };
-        # #define TREE_CODE_CLASS(CODE)	tree_code_type[(int) (CODE)]
-        # or
-        # template <int N>
-        # struct tree_code_type_tmpl {
-        # static constexpr enum tree_code_class tree_code_type[] = { ... };
-        # }; };
-        # #define TREE_CODE_CLASS(CODE) \
-        # tree_code_type_tmpl <0>::tree_code_type[(int) (CODE)]
-
         if val_TREE_CODE == 0xa5a5:
             return '<ggc_freed 0x%x>' % intptr(self.gdbval)
 
-        try:
-            val_tree_code_type = gdb.parse_and_eval('tree_code_type')
-        except:
-            val_tree_code_type = gdb.parse_and_eval('tree_code_type_tmpl<0>::tree_code_type')
         val_tclass = val_tree_code_type[val_TREE_CODE]
-
-        val_tree_code_name = gdb.parse_and_eval('tree_code_name')
         val_code_name = val_tree_code_name[intptr(val_TREE_CODE)]
-        #print(val_code_name.string())
 
         try:
             result = '<%s 0x%x' % (val_code_name.string(), intptr(self.gdbval))
