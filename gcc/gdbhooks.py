@@ -357,10 +357,10 @@ class TreeListPrinter:
         self.gdbval = gdbval
 
     def children (self):
-        curr = self.gdbval
+        curr = self.gdbval.address.cast(tree_type_node.pointer())
         n = 0
-        while intptr(curr) != 0:
-            yield (f'[{n}]', curr['value'])
+        while curr != 0:
+            yield (f'[{n}]', curr['list']['value'])
             n+=1
             curr = curr['common']['chain']
 
