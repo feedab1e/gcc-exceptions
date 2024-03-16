@@ -186,6 +186,18 @@ def init_globals(event):
     TREE_LIST = tree_code_dict['TREE_LIST']
     global TREE_VEC
     TREE_VEC = tree_code_dict['TREE_VEC']
+     global BIND_EXPR
+    BIND_EXPR = tree_code_dict['BIND_EXPR']
+    global EH_SPEC_BLOCK
+    EH_SPEC_BLOCK = tree_code_dict['EH_SPEC_BLOCK']
+    global HANDLER
+    HANDLER = tree_code_dict['HANDLER']
+
+    global exp_op_map
+    exp_op_map = {
+        int(BIND_EXPR) : ['vars', 'stmt', 'scope'],
+        int(HANDLER) : ['params', 'body'],
+    }
 
     # tree_node_structure_enum
     global tree_structure
@@ -345,8 +357,9 @@ class TreeExpPrinter:
         if chld == 0:
             return
         curr = self.gdbval
+        map = exp_op_map.get(int(curr['typed']['base']['code']), None)
         for i in range(chld):
-            yield (f'[{i}]', curr['operands'][i])
+            yield (f'[{map[i] if map else i}]', curr['operands'][i])
 
 class TreeListPrinter:
     "Prints a tree_list part of tree"
