@@ -614,7 +614,7 @@ class GdbPrettyPrinters(gdb.printing.PrettyPrinter):
 
 def build_pretty_printer():
     pp = GdbPrettyPrinters('gcc')
-    pp.add_printer_for_types(['tree', 'const_tree'],
+    pp.add_printer_for_types(['tree', 'const_tree', 'tree_node *', 'const tree_node *'],
                              'tree', TreePrinter)
     pp.add_printer_for_types(['cgraph_node *', 'varpool_node *', 'symtab_node *'],
                              'symtab_node', SymtabNodePrinter)
