@@ -186,7 +186,7 @@ def init_globals(event):
     TREE_LIST = tree_code_dict['TREE_LIST']
     global TREE_VEC
     TREE_VEC = tree_code_dict['TREE_VEC']
-     global BIND_EXPR
+    global BIND_EXPR
     BIND_EXPR = tree_code_dict['BIND_EXPR']
     global EH_SPEC_BLOCK
     EH_SPEC_BLOCK = tree_code_dict['EH_SPEC_BLOCK']
