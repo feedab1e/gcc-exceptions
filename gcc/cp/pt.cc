@@ -204,7 +204,7 @@ static void copy_default_args_to_explicit_spec (tree);
 static bool invalid_nontype_parm_type_p (tree, tsubst_flags_t);
 static bool dependent_template_arg_p (tree);
 static bool dependent_type_p_r (tree);
-static tree tsubst_stmt (tree, tree, tsubst_flags_t, tree);
+tree tsubst_stmt (tree, tree, tsubst_flags_t, tree);
 static tree tsubst_decl (tree, tree, tsubst_flags_t, bool = true);
 static tree tsubst_scope (tree, tree, tsubst_flags_t, tree);
 static tree tsubst_name (tree, tree, tsubst_flags_t, tree);
@@ -18140,7 +18140,7 @@ dependent_operand_p (tree t)
 
 /* A superset of tsubst_expr that also handles statement trees.  */
 
-static tree
+tree
 tsubst_stmt (tree t, tree args, tsubst_flags_t complain, tree in_decl)
 {
 #define RETURN(EXP) do { r = (EXP); goto out; } while(0)

@@ -28927,6 +28927,8 @@ cp_parser_handler_seq (cp_parser* parser)
    handler:
      catch ( exception-declaration ) compound-statement  */
 
+tree
+tsubst_stmt (tree t, tree args, tsubst_flags_t complain, tree in_decl);
 static void
 cp_parser_handler (cp_parser* parser)
 {
@@ -28949,6 +28951,15 @@ cp_parser_handler (cp_parser* parser)
       cp_parser_compound_statement (parser, NULL, BCS_NORMAL, false);
       finish_handler (handler);
       finish_fully_implicit_template(parser, NULL_TREE);
+      auto yesterhandler = tsi_last (stmt_list_stack->last ());
+      tsi_delink (&yesterhandler);
+      tree args = make_tree_vec (1);
+      for(tree curr = get_current_eh_context()->unhandled_list; curr; curr = TREE_CHAIN (curr))
+      {
+        TREE_VEC_ELT (args, 0) = TREE_VALUE(curr);
+        local_specialization_stack s;
+        tree result = tsubst_stmt (handler, args, tf_warning_or_error, NULL_TREE);
+      }
     }
   else
     {

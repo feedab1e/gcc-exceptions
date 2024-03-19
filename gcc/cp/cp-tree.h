@@ -2129,6 +2129,7 @@ struct GTY(()) cp_eh_scope {
   cp_eh_scope *next;
 };
 
+cp_eh_scope *& get_current_eh_context();
 void push_eh_scope(tree in_flight);
 void pop_eh_scope(bool discard = false);
 void add_eh_type(tree);
@@ -7542,6 +7543,7 @@ extern void instantiate_pending_templates	(int);
 extern tree tsubst_default_argument		(tree, int, tree, tree,
 						 tsubst_flags_t);
 extern tree tsubst (tree, tree, tsubst_flags_t, tree);
+extern tree tsubst_stmt                         (tree, tree, tsubst_flags_t, tree);
 extern tree tsubst_expr                         (tree, tree, tsubst_flags_t, tree);
 extern tree tsubst_pack_expansion		(tree, tree, tsubst_flags_t, tree);
 extern tree tsubst_argument_pack		(tree, tree, tsubst_flags_t, tree);
