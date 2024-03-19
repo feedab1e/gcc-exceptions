@@ -196,12 +196,16 @@ dump_eh_spec_into_scope (tree spec)
 void
 remove_eh_type (tree type)
 {
-  tree current = get_current_eh_context ()->unhandled_list;
+  tree& current = get_current_eh_context ()->unhandled_list;
   if (current == noexcept_false_spec)
     return;
   if (current == noexcept_true_spec)
     return;
   if (current == empty_except_spec)
+    return;
+  while (current && can_convert_eh (type, TREE_VALUE (current)))
+    current = TREE_CHAIN (current);
+  if (!current)
     return;
   for (tree prev = current, curr = TREE_CHAIN (prev); curr; prev = curr, curr = TREE_CHAIN (prev))
     if (can_convert_eh (type, TREE_VALUE (curr)))
