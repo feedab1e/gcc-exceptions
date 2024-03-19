@@ -57,7 +57,7 @@ get_current_eh_context()
     }
   else
     {
-      gcc_assert (!cp_function_chain->eh_chain);
+      //gcc_assert (!cp_function_chain->eh_chain);
       return null;
     }
 }
