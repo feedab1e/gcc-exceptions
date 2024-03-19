@@ -192,11 +192,14 @@ def init_globals(event):
     EH_SPEC_BLOCK = tree_code_dict['EH_SPEC_BLOCK']
     global HANDLER
     HANDLER = tree_code_dict['HANDLER']
+    global TRY_BLOCK
+    TRY_BLOCK = tree_code_dict['TRY_BLOCK']
 
     global exp_op_map
     exp_op_map = {
         int(BIND_EXPR) : ['vars', 'stmt', 'scope'],
         int(HANDLER) : ['params', 'body'],
+        int(TRY_BLOCK) : ['try-stmts', 'handlers'],
     }
 
     # tree_node_structure_enum
