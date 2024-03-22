@@ -155,6 +155,8 @@ def init_globals(event):
     tree_code_dict = gdb.types.make_enum_dict(gdb.lookup_type('enum tree_code'))
     global tree_type_node
     tree_type_node = gdb.lookup_type('union tree_node')
+    global tree_decl_common_type_node
+    tree_decl_common_type_node = gdb.lookup_type('struct tree_decl_common')
     global tree_operand_length
     tree_operand_length = gdb.lookup_global_symbol('tree_operand_length').value()
 
@@ -196,6 +198,21 @@ def init_globals(event):
     TRY_BLOCK = tree_code_dict['TRY_BLOCK']
     global TEMPLATE_ID_EXPR
     TEMPLATE_ID_EXPR = tree_code_dict['TEMPLATE_ID_EXPR']
+    global CONCEPT_DECL
+    CONCEPT_DECL = tree_code_dict['CONCEPT_DECL']
+
+    global field_map
+    field_map = {
+        int(CONCEPT_DECL) : {
+            'initial' : 'expr'
+        },
+        int(TYPE_DECL) : {
+            'common' : 'common',
+            'initial' : 'constrained_param_prototype',
+            'size_unit' : 'constrained_parm_concept',
+            'size' : 'constrained_parm_extra_args'
+        }
+    }
 
     global exp_op_map
     exp_op_map = {
@@ -380,6 +397,22 @@ class TreeListPrinter:
             yield (f'[{n}]', curr['list']['value'])
             n+=1
             curr = curr['common']['chain']
+class TreeDeclCommonPrinter:
+    "Prints a tree_decl_common part of tree"
+
+    def __init__ (self, gdbval):
+        self.gdbval = gdbval
+        self.code = int(self.gdbval['common']['common']['typed']['base']['code'])
+
+    def children (self):
+        curr_map = field_map[self.code]
+        for field in tree_decl_common_type_node.fields():
+            if curr_map:
+                x = curr_map.get(field.name)
+                if x:
+                    yield (x, self.gdbval[field])
+            else:
+                yield field, self.gdbval[field]
 
 
 class TreeVecPrinter:
