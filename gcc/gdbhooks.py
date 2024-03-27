@@ -157,6 +157,8 @@ def init_globals(event):
     tree_type_node = gdb.lookup_type('union tree_node')
     global tree_decl_common_type_node
     tree_decl_common_type_node = gdb.lookup_type('struct tree_decl_common')
+    global template_parm_index_type_node
+    template_parm_index_type_node = gdb.lookup_type('struct template_parm_index').pointer()
     global tree_operand_length
     tree_operand_length = gdb.lookup_global_symbol('tree_operand_length').value()
 
@@ -200,6 +202,8 @@ def init_globals(event):
     TEMPLATE_ID_EXPR = tree_code_dict['TEMPLATE_ID_EXPR']
     global CONCEPT_DECL
     CONCEPT_DECL = tree_code_dict['CONCEPT_DECL']
+    global TEMPLATE_PARM_INDEX
+    TEMPLATE_PARM_INDEX = tree_code_dict['TEMPLATE_PARM_INDEX']
 
     global field_map
     field_map = {
@@ -308,6 +312,8 @@ class TreePrinter:
         for i, field in enumerate(tree_type_node.fields()):
             if 1 if tree_structure[val_TREE_CODE][i] else 0:
                 yield (field.name, curr[field])
+        if self.node.TREE_CODE() == TEMPLATE_PARM_INDEX:
+            yield "[tparm_idx]", self.gdbval.cast(template_parm_index_type_node)
 
     def to_string (self):
         # like gcc/print-tree.c:print_node_brief
