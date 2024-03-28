@@ -28950,6 +28950,7 @@ cp_parser_handler (cp_parser* parser)
   finish_handler (handler);
   if (TEMPLATE_PARM_P (TREE_TYPE (declaration)))
     {
+      TREE_TYPE (HANDLER_BODY (handler)) = TEMPLATE_PARMS_CONSTRAINTS (current_template_parms);
       finish_fully_implicit_template(parser, NULL_TREE);
     }
   leave_scope ();
