@@ -4903,6 +4903,7 @@ cxx_init_decl_processing (void)
   truthvalue_false_node = boolean_false_node;
   truthvalue_true_node = boolean_true_node;
 
+  auto_except_spec = build_tree_list (auto_identifier, NULL_TREE);
   empty_except_spec = build_tree_list (NULL_TREE, NULL_TREE);
   noexcept_true_spec = build_tree_list (boolean_true_node, NULL_TREE);
   noexcept_false_spec = build_tree_list (boolean_false_node, NULL_TREE);

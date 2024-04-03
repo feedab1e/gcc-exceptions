@@ -41,6 +41,161 @@ static tree do_allocate_exception (tree);
 static tree wrap_cleanups_r (tree *, int *, void *);
 static bool is_admissible_throw_operand_or_catch_parameter (tree, bool,
 							    tsubst_flags_t);
+static bool
+can_convert_eh (tree to, tree from);
+static int
+cmp_eh_types (tree a, tree b)
+{
+  gcc_assert(a && b);
+  return strcmp (cxx_printable_name (a, 2), cxx_printable_name (b, 2));
+}
+
+bool is_noexcept_spec (tree spec)
+{
+  return spec == noexcept_true_spec || spec == empty_except_spec;
+}
+bool is_noexcept_false_spec (tree spec)
+{
+  return spec == noexcept_false_spec;
+}
+bool is_uncomputed_spec (tree spec)
+{
+  return spec == noexcept_deferred_spec || spec == auto_except_spec;
+}
+bool is_type_list_spec (tree spec)
+{
+  if (is_noexcept_spec(spec) || is_noexcept_false_spec(spec) ||
+      is_uncomputed_spec(spec)) return false;
+  for (; spec; spec = TREE_CHAIN(spec))
+    if (TREE_CODE(spec) != TREE_LIST || !TYPE_P(TREE_VALUE(spec))) return false;
+  return true;
+}
+
+cp_exception_context *&get_exception_context()
+{
+  if (cfun && cp_function_chain)
+    return cp_function_chain->eh_chain;
+  if (!scope_chain->eh_chain)
+    scope_chain->eh_chain = ggc_cleared_alloc<cp_exception_context>();
+  return scope_chain->eh_chain;
+}
+
+void push_exception_context ()
+{
+  auto& curr = get_exception_context();
+  cp_exception_context *next = ggc_cleared_alloc<cp_exception_context>();
+  next->prev = curr;
+  if (curr)
+    next->in_flight = curr->in_flight;
+  curr = next;
+  curr->current = noexcept_true_spec;
+  curr->saved = noexcept_true_spec;
+}
+
+void pop_exception_context (bool discard)
+{
+  cp_exception_context *&curr = get_exception_context();
+  cp_exception_context *last = curr;
+  curr = curr->prev;
+  if (!curr) return;
+  if (discard) return;
+  tree to_merge[]
+    {
+      last->current,
+      last->saved,
+      curr->current
+    };
+  curr->current = merge_exception_specs(to_merge,
+                                        sizeof to_merge / sizeof to_merge[0]);
+}
+
+void save_exception_list ()
+{
+  auto &ctx = get_exception_context();
+  gcc_assert(!ctx->saved);
+  ctx->saved = ctx->current;
+  ctx->current = NULL_TREE;
+}
+
+tree merge_exception_specs (tree * list, int size)
+{
+  for(int i = 0; i != size; ++i)
+    {
+      gcc_assert(!is_uncomputed_spec(list[i]));
+      if (is_noexcept_false_spec(list[i]))
+        return noexcept_false_spec;
+    }
+  int start = 0; int end = size;
+  while (start != end)
+    if (!list[start] || is_noexcept_spec(list[start]))
+      {
+        std::swap(list[start], list[end - 1]);
+        end--;
+      }
+    else
+      start++;
+  tree result = NULL_TREE;
+  for(;;)
+    {
+      tree min_node = NULL_TREE;
+      for(int i = 0; i != start; ++i)
+        if (list[i])
+          if (!min_node || cmp_eh_types(TREE_VALUE(list[i]), min_node) < 0)
+            min_node = TREE_VALUE(list[i]);
+      if (!min_node)
+        {
+          tree prev = NULL_TREE;
+          tree next = NULL_TREE;
+          for(;result;)
+            {
+              next = TREE_CHAIN(result);
+              TREE_CHAIN(result) = prev;
+              prev = result;
+              result = next;
+            }
+          return result;
+        }
+      for(int i = 0; i != start; ++i)
+        if(list[i])
+          if (cmp_eh_types (TREE_VALUE(list[i]), min_node) == 0)
+            list[i] = TREE_CHAIN(list[i]);
+      result = tree_cons(NULL_TREE, min_node, result);
+    }
+}
+
+bool check_agains_spec (tree spec, tree check, bool issue_error)
+{
+  gcc_assert(!is_uncomputed_spec(spec));
+  gcc_assert(!is_uncomputed_spec(check));
+  if (is_noexcept_false_spec(check)) return true;
+  if (is_noexcept_spec(spec)) return true;
+  if (is_noexcept_false_spec(spec) || !is_noexcept_spec(spec) && is_noexcept_spec(check))
+    {
+      if (issue_error)
+        error("Invalid eh spec !!!");
+      return false;
+    }
+  gcc_assert(is_type_list_spec(spec));
+  gcc_assert(is_type_list_spec(check));
+  bool matches = true;
+  for (; spec; spec = TREE_CHAIN(spec))
+    {
+      bool accept_type = false;
+      for (tree new_check = check; new_check; new_check = TREE_CHAIN(new_check))
+        if (can_convert_eh(TREE_VALUE(spec), TREE_VALUE(new_check)))
+          {
+            accept_type = true;
+            break;
+          }
+      if (!accept_type)
+        {
+          if (issue_error)
+            error ("cannot convert type %qT into any of %qH", spec, check);
+          matches = false;
+        }
+    }
+  return matches;
+}
 
 /* Sets up all the global eh stuff that needs to be initialized at the
    start of compilation.  */

@@ -196,6 +196,7 @@ enum cp_tree_index
     CPTI_LANG_NAME_C,
     CPTI_LANG_NAME_CPLUSPLUS,
 
+    CPTI_AUTO_EXCEPT_SPEC,
     CPTI_EMPTY_EXCEPT_SPEC,
     CPTI_NOEXCEPT_TRUE_SPEC,
     CPTI_NOEXCEPT_FALSE_SPEC,
@@ -352,6 +353,7 @@ extern GTY(()) tree cp_global_trees[CPTI_MAX];
 /* Exception specifiers used for throw(), noexcept(true),
    noexcept(false) and deferred noexcept.  We rely on these being
    uncloned.  */
+#define auto_except_spec		cp_global_trees[CPTI_AUTO_EXCEPT_SPEC]
 #define empty_except_spec		cp_global_trees[CPTI_EMPTY_EXCEPT_SPEC]
 #define noexcept_true_spec		cp_global_trees[CPTI_NOEXCEPT_TRUE_SPEC]
 #define noexcept_false_spec		cp_global_trees[CPTI_NOEXCEPT_FALSE_SPEC]
@@ -1864,6 +1866,24 @@ struct GTY(()) cp_omp_begin_assumes_data {
   bool attr_syntax;
 };
 
+struct cp_exception_context
+{
+  tree current;
+  tree saved;
+  tree in_flight;
+  cp_exception_context *prev;
+};
+bool is_noexcept_spec (tree);
+bool is_noexcept_false_spec (tree);
+bool is_uncomputed_spec (tree);
+bool is_type_list_spec (tree);
+cp_exception_context *&get_exception_context();
+void push_exception_context ();
+void pop_exception_context (bool = true);
+void save_exception_list ();
+tree merge_exception_specs (tree *, int);
+bool check_agains_spec (tree, tree, bool);
+
 /* Global state.  */
 
 struct GTY(()) saved_scope {
@@ -1909,6 +1929,8 @@ struct GTY(()) saved_scope {
 
   cp_binding_level *class_bindings;
   cp_binding_level *bindings;
+
+  cp_exception_context *eh_chain;
 
   hash_map<tree, tree> *GTY((skip)) x_local_specializations;
   vec<cp_omp_declare_target_attr, va_gc> *omp_declare_target_attribute;
@@ -2149,6 +2171,8 @@ struct GTY(()) language_function {
   hash_table<named_label_hash> *x_named_labels;
 
   cp_binding_level *bindings;
+
+  cp_exception_context *eh_chain;
 
   /* Tracking possibly infinite loops.  This is a vec<tree> only because
      vec<bool> doesn't work with gtype.  */
