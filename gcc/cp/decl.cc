@@ -18649,6 +18649,8 @@ finish_function (bool inline_p)
   if (!processing_template_decl)
     {
       auto ctx = get_exception_context();
+      if (TYPE_RAISES_EXCEPTIONS(fntype) == auto_except_spec)
+        TYPE_RAISES_EXCEPTIONS(fntype) = ctx->current;
       check_agains_spec(TYPE_RAISES_EXCEPTIONS(fntype), ctx->current, false);
     }
 

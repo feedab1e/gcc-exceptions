@@ -29021,6 +29021,7 @@ static tree
 cp_parser_exception_specification_opt (cp_parser* parser,
 				       cp_parser_flags flags)
 {
+  bool enable_static_exceptions = cxx_dialect >= cxx26 && !flag_iso;
   cp_token *token;
   tree type_id_list;
   const char *saved_message;
@@ -29052,6 +29053,12 @@ cp_parser_exception_specification_opt (cp_parser* parser,
 
   /* Peek at the next token.  */
   token = cp_lexer_peek_token (parser->lexer);
+  if(token->keyword == RID_AUTO && enable_static_exceptions)
+    {
+      cp_lexer_consume_token(parser->lexer);
+      parens.require_close (parser);
+      return auto_except_spec;
+    }
   /* If it's not a `)', then there is a type-id-list.  */
   if (token->type != CPP_CLOSE_PAREN)
     {
@@ -29064,13 +29071,13 @@ cp_parser_exception_specification_opt (cp_parser* parser,
       /* Restore the saved message.  */
       parser->type_definition_forbidden_message = saved_message;
 
-      if (cxx_dialect >= cxx17)
+      if (cxx_dialect >= cxx17 && !enable_static_exceptions)
 	{
 	  error_at (loc, "ISO C++17 does not allow dynamic exception "
 			 "specifications");
 	  type_id_list = NULL_TREE;
 	}
-      else if (cxx_dialect >= cxx11)
+      else if (cxx_dialect >= cxx11 && !enable_static_exceptions)
 	warning_at (loc, OPT_Wdeprecated,
 		    "dynamic exception specifications are deprecated in "
 		    "C++11");
