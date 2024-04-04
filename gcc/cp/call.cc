@@ -11078,6 +11078,9 @@ build_cxx_call (tree fn, int nargs, tree *argarray,
 {
   tree fndecl;
 
+  tree fntype = TYPE_CHECK(TREE_TYPE(fn));
+  while (POINTER_TYPE_P(fntype))
+    fntype = TREE_TYPE(fntype);
   /* Remember roughly where this call is.  */
   location_t loc = cp_expr_loc_or_input_loc (fn);
   fn = build_call_a (fn, nargs, argarray);
@@ -11087,6 +11090,18 @@ build_cxx_call (tree fn, int nargs, tree *argarray,
   if (!orig_fndecl)
     orig_fndecl = fndecl;
 
+  if (!processing_template_decl)
+    {
+      auto ctx = get_exception_context();
+      tree to_merge[] =
+        {
+          ctx->current,
+          TYPE_RAISES_EXCEPTIONS(fntype)
+        };
+      ctx->current = merge_exception_specs(to_merge,
+                                           sizeof to_merge
+                                           / sizeof to_merge[0]);
+    }
   /* Check that arguments to builtin functions match the expectations.  */
   if (fndecl
       && !processing_template_decl

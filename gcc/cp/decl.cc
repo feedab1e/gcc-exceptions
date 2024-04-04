@@ -17990,6 +17990,9 @@ start_preparsed_function (tree decl1, tree attrs, int flags)
   /* Initialize the language data structures.  Whenever we start
      a new function, we destroy temporaries in the usual way.  */
   cfun->language = ggc_cleared_alloc<language_function> ();
+  cfun->language->eh_chain = ggc_cleared_alloc<cp_exception_context>();
+  if (!processing_template_decl)
+    push_exception_context();
   current_stmt_tree ()->stmts_are_full_exprs_p = 1;
   current_binding_level = bl;
 
@@ -18642,6 +18645,12 @@ finish_function (bool inline_p)
   /* Statements should always be full-expressions at the outermost set
      of curly braces for a function.  */
   gcc_assert (stmts_are_full_exprs_p ());
+
+  if (!processing_template_decl)
+    {
+      auto ctx = get_exception_context();
+      check_agains_spec(TYPE_RAISES_EXCEPTIONS(fntype), ctx->current, false);
+    }
 
   /* If there are no return statements in a function with auto return type,
      the return type is void.  But if the declared type is something like
