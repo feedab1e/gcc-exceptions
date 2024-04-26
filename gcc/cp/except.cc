@@ -170,6 +170,29 @@ tree merge_exception_specs (tree * list, int size)
     }
 }
 
+void subtract_exception(tree& spec, tree exception)
+{
+  if(!exception)
+    goto set_noexcept;
+
+  if (is_noexcept_spec(spec)) return;
+  if (is_noexcept_false_spec(spec))
+    if(exception) return;
+    else goto set_noexcept;
+  for(; spec && can_convert_eh(exception, TREE_VALUE(spec)); spec = TREE_CHAIN(spec));
+  if (!spec)
+    goto set_noexcept;
+  for (tree it = spec; TREE_CHAIN(it);)
+    {
+      if(can_convert_eh(exception, TREE_VALUE(TREE_CHAIN(it))))
+        TREE_CHAIN(it) = TREE_CHAIN(TREE_CHAIN(it));
+      else
+        it = TREE_CHAIN(it);
+    }
+  set_noexcept:
+      spec = noexcept_true_spec;
+}
+
 bool check_agains_spec (tree spec, tree check, bool issue_error)
 {
   gcc_assert(!is_uncomputed_spec(spec));
