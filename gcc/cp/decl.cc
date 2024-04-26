@@ -10925,8 +10925,9 @@ grokfndecl (tree ctype,
        tentative.  error_mark_node is replaced later with the BLOCK.  */
     DECL_INITIAL (decl) = error_mark_node;
 
-  if (TYPE_NOTHROW_P (type) || nothrow_libfn_p (decl))
-    TREE_NOTHROW (decl) = 1;
+  if (TYPE_RAISES_EXCEPTIONS (type) != auto_except_spec)
+    if (TYPE_NOTHROW_P (type) || nothrow_libfn_p (decl))
+      TREE_NOTHROW (decl) = 1;
 
   if (flag_openmp || flag_openmp_simd)
     {
@@ -17991,6 +17992,9 @@ start_preparsed_function (tree decl1, tree attrs, int flags)
      a new function, we destroy temporaries in the usual way.  */
   cfun->language = ggc_cleared_alloc<language_function> ();
   cfun->language->eh_chain = ggc_cleared_alloc<cp_exception_context>();
+  cfun->language->eh_chain->current = noexcept_true_spec;
+  cfun->language->eh_chain->saved = noexcept_true_spec;
+  
   if (!processing_template_decl)
     push_exception_context();
   current_stmt_tree ()->stmts_are_full_exprs_p = 1;

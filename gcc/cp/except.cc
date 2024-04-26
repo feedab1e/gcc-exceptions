@@ -76,7 +76,11 @@ cp_exception_context *&get_exception_context()
   if (cfun && cp_function_chain)
     return cp_function_chain->eh_chain;
   if (!scope_chain->eh_chain)
-    scope_chain->eh_chain = ggc_cleared_alloc<cp_exception_context>();
+    {
+      scope_chain->eh_chain = ggc_cleared_alloc<cp_exception_context>();
+      scope_chain->eh_chain->current = noexcept_true_spec;
+      scope_chain->eh_chain->saved = noexcept_true_spec;
+    }
   return scope_chain->eh_chain;
 }
 
@@ -114,7 +118,7 @@ void save_exception_list ()
   auto &ctx = get_exception_context();
   gcc_assert(!ctx->saved);
   ctx->saved = ctx->current;
-  ctx->current = NULL_TREE;
+  ctx->current = noexcept_true_spec;
 }
 
 tree merge_exception_specs (tree * list, int size)
@@ -122,7 +126,7 @@ tree merge_exception_specs (tree * list, int size)
   for(int i = 0; i != size; ++i)
     {
       gcc_assert(!is_uncomputed_spec(list[i]));
-      if (is_noexcept_false_spec(list[i]))
+      if (!list[i] || is_noexcept_false_spec(list[i]))
         return noexcept_false_spec;
     }
   int start = 0; int end = size;
@@ -134,6 +138,8 @@ tree merge_exception_specs (tree * list, int size)
       }
     else
       start++;
+  if(!start)
+    return noexcept_true_spec;
   tree result = NULL_TREE;
   for(;;)
     {
@@ -153,7 +159,8 @@ tree merge_exception_specs (tree * list, int size)
               prev = result;
               result = next;
             }
-          return result;
+          gcc_assert(prev);
+          return prev;
         }
       for(int i = 0; i != start; ++i)
         if(list[i])
