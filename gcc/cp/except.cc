@@ -116,7 +116,7 @@ void pop_exception_context (bool discard)
 void save_exception_list ()
 {
   auto &ctx = get_exception_context();
-  gcc_assert(!ctx->saved);
+  gcc_assert(ctx->saved == noexcept_true_spec);
   ctx->saved = ctx->current;
   ctx->current = noexcept_true_spec;
 }
