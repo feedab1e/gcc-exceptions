@@ -179,7 +179,10 @@ bool check_agains_spec (tree spec, tree check, bool issue_error)
   if (is_noexcept_false_spec(spec) || !is_noexcept_spec(spec) && is_noexcept_spec(check))
     {
       if (issue_error)
-        error("Invalid eh spec !!!");
+        {
+          error("Invalid eh spec !!!");
+          inform (input_location, "cannot convert spec %qX into %qX",spec, check);
+        }
       return false;
     }
   gcc_assert(is_type_list_spec(spec));
@@ -197,7 +200,10 @@ bool check_agains_spec (tree spec, tree check, bool issue_error)
       if (!accept_type)
         {
           if (issue_error)
-            error ("cannot convert type %qT into any of %qH", spec, check);
+            {
+              error ("Invalid eh spec !!!");
+              inform (input_location, "cannot convert type %qT into any of %qX", TREE_VALUE(spec), check);
+            }
           matches = false;
         }
     }
