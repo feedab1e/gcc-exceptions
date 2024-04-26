@@ -18651,7 +18651,7 @@ finish_function (bool inline_p)
       auto ctx = get_exception_context();
       if (TYPE_RAISES_EXCEPTIONS(fntype) == auto_except_spec)
         TYPE_RAISES_EXCEPTIONS(fntype) = ctx->current;
-      check_agains_spec(TYPE_RAISES_EXCEPTIONS(fntype), ctx->current, false);
+      check_agains_spec(ctx->current, TYPE_RAISES_EXCEPTIONS(fntype), flag_static_exceptions);
     }
 
   /* If there are no return statements in a function with auto return type,

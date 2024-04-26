@@ -2215,6 +2215,10 @@ fsized-deallocation
 C++ ObjC++ Var(flag_sized_deallocation) Init(-1)
 Enable C++14 sized deallocation support.
 
+fstatic-exceptions
+Driver C++ ObjC++ common Var(flag_static_exceptions) Init(0)
+Support static exceptions (development option)
+
 fstrict-flex-arrays
 C C++ Common Alias(fstrict-flex-arrays=,3,0)
 

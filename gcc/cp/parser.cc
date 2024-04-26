@@ -29021,7 +29021,7 @@ static tree
 cp_parser_exception_specification_opt (cp_parser* parser,
 				       cp_parser_flags flags)
 {
-  bool enable_static_exceptions = cxx_dialect >= cxx26 && !flag_iso;
+  bool enable_static_exceptions = flag_static_exceptions;
   cp_token *token;
   tree type_id_list;
   const char *saved_message;
