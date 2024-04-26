@@ -806,6 +806,7 @@ build_throw (location_t loc, tree exp, tsubst_flags_t complain)
   if (exp)
     {
       tree throw_type;
+      tree exception_type;
       tree temp_type;
       tree cleanup;
       tree object, ptr;
@@ -861,6 +862,7 @@ build_throw (location_t loc, tree exp, tsubst_flags_t complain)
 	 the call to __cxa_allocate_exception first (which doesn't
 	 matter, since it can't throw).  */
 
+      push_exception_context();
       /* Allocate the space for the exception.  */
       allocate_expr = do_allocate_exception (temp_type);
       if (allocate_expr == error_mark_node)
@@ -869,6 +871,7 @@ build_throw (location_t loc, tree exp, tsubst_flags_t complain)
       ptr = TARGET_EXPR_SLOT (allocate_expr);
       TARGET_EXPR_CLEANUP (allocate_expr) = do_free_exception (ptr);
       CLEANUP_EH_ONLY (allocate_expr) = 1;
+      pop_exception_context();
 
       object = build_nop (build_pointer_type (temp_type), ptr);
       object = cp_build_fold_indirect_ref (object);
@@ -919,7 +922,8 @@ build_throw (location_t loc, tree exp, tsubst_flags_t complain)
 	 to do them during unwinding.  */
       exp = build1 (CLEANUP_POINT_EXPR, void_type_node, exp);
 
-      throw_type = build_eh_type_type (prepare_eh_type (TREE_TYPE (object)));
+      exception_type = prepare_eh_type (TREE_TYPE (object));
+      throw_type = build_eh_type_type (exception_type);
 
       cleanup = NULL_TREE;
       if (type_build_dtor_call (TREE_TYPE (object)))
@@ -943,10 +947,24 @@ build_throw (location_t loc, tree exp, tsubst_flags_t complain)
       if (cleanup == NULL_TREE)
 	cleanup = build_int_cst (cleanup_type, 0);
 
+      if (!processing_template_decl)
+        {
+          auto ctx = get_exception_context();
+          tree to_merge[] =
+            {
+            ctx->current,
+            tree_cons(NULL_TREE, exception_type, NULL_TREE)
+          };
+          ctx->current = merge_exception_specs(to_merge,
+                                               sizeof to_merge
+                                               / sizeof to_merge[0]);
+        }
+      push_exception_context();
       /* ??? Indicate that this function call throws throw_type.  */
       tree tmp = cp_build_function_call_nary (throw_fn, complain,
 					      ptr, throw_type, cleanup,
 					      NULL_TREE);
+      pop_exception_context();
 
       /* Tack on the initialization stuff.  */
       exp = build2 (COMPOUND_EXPR, TREE_TYPE (tmp), exp, tmp);
