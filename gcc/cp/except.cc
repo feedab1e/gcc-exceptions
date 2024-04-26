@@ -189,6 +189,7 @@ void subtract_exception(tree& spec, tree exception)
       else
         it = TREE_CHAIN(it);
     }
+  return;
   set_noexcept:
       spec = noexcept_true_spec;
 }
