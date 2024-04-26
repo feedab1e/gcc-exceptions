@@ -1757,6 +1757,7 @@ begin_try_block (void)
   tree r = build_stmt (input_location, TRY_BLOCK, NULL_TREE, NULL_TREE);
   add_stmt (r);
   TRY_STMTS (r) = push_stmt_list ();
+  push_exception_context ();
   return r;
 }
 
@@ -1784,6 +1785,7 @@ finish_try_block (tree try_block)
 {
   TRY_STMTS (try_block) = pop_stmt_list (TRY_STMTS (try_block));
   TRY_HANDLERS (try_block) = push_stmt_list ();
+  save_exception_list();
 }
 
 /* Finish the body of a cleanup try-block, which may be given by
@@ -1824,6 +1826,7 @@ finish_handler_sequence (tree try_block)
 {
   TRY_HANDLERS (try_block) = pop_stmt_list (TRY_HANDLERS (try_block));
   check_handlers (TRY_HANDLERS (try_block));
+  pop_exception_context(false);
 }
 
 /* Finish the handler-seq for a function-try-block, given by
