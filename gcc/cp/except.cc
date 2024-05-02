@@ -599,7 +599,12 @@ expand_start_catch_block (tree decl)
     }
   else
     type = NULL_TREE;
+  push_exception_context();
+  auto ctx = get_exception_context();
+  ctx->in_flight = type;
+  subtract_exception(ctx->prev->saved, type);
 
+  push_exception_context();
   /* Call __cxa_end_catch at the end of processing the exception.  */
   push_eh_cleanup (type);
 
@@ -640,7 +645,7 @@ expand_start_catch_block (tree decl)
       DECL_REGISTER (exp) = 1;
       initialize_handler_parm (decl, exp);
     }
-
+  pop_exception_context();
   return type;
 }
 
@@ -685,6 +690,7 @@ expand_end_catch_block (void)
       suppress_warning (rethrow);
       finish_expr_stmt (rethrow);
     }
+  pop_exception_context(false);
 }
 
 tree
@@ -886,7 +892,8 @@ build_throw (location_t loc, tree exp, tsubst_flags_t complain)
 	 the call to __cxa_allocate_exception first (which doesn't
 	 matter, since it can't throw).  */
 
-      push_exception_context();
+      if (!processing_template_decl)
+        push_exception_context();
       /* Allocate the space for the exception.  */
       allocate_expr = do_allocate_exception (temp_type);
       if (allocate_expr == error_mark_node)
@@ -895,7 +902,8 @@ build_throw (location_t loc, tree exp, tsubst_flags_t complain)
       ptr = TARGET_EXPR_SLOT (allocate_expr);
       TARGET_EXPR_CLEANUP (allocate_expr) = do_free_exception (ptr);
       CLEANUP_EH_ONLY (allocate_expr) = 1;
-      pop_exception_context();
+      if (!processing_template_decl)
+        pop_exception_context();
 
       object = build_nop (build_pointer_type (temp_type), ptr);
       object = cp_build_fold_indirect_ref (object);
@@ -983,18 +991,22 @@ build_throw (location_t loc, tree exp, tsubst_flags_t complain)
                                                sizeof to_merge
                                                / sizeof to_merge[0]);
         }
-      push_exception_context();
+      if (!processing_template_decl)
+        push_exception_context();
       /* ??? Indicate that this function call throws throw_type.  */
       tree tmp = cp_build_function_call_nary (throw_fn, complain,
 					      ptr, throw_type, cleanup,
 					      NULL_TREE);
-      pop_exception_context();
+      if (!processing_template_decl)
+        pop_exception_context();
 
       /* Tack on the initialization stuff.  */
       exp = build2 (COMPOUND_EXPR, TREE_TYPE (tmp), exp, tmp);
     }
   else
     {
+      if (!processing_template_decl)
+        push_exception_context();
       /* Rethrow current exception.  */
       if (!rethrow_fn)
 	{
@@ -1009,6 +1021,26 @@ build_throw (location_t loc, tree exp, tsubst_flags_t complain)
       /* ??? Indicate that this function call allows exceptions of the type
 	 of the enclosing catch block (if known).  */
       exp = cp_build_function_call_vec (rethrow_fn, NULL, complain);
+      if (!processing_template_decl)
+        pop_exception_context();
+
+      if (!processing_template_decl)
+        {
+          auto ctx = get_exception_context();
+          if(ctx->in_flight)
+            {
+              tree to_merge[] =
+                {
+                ctx->current,
+                tree_cons(NULL_TREE, ctx->in_flight, NULL_TREE)
+              };
+              ctx->current = merge_exception_specs(to_merge,
+                                                   sizeof to_merge
+                                                   / sizeof to_merge[0]);
+            }
+          else
+            ctx->current = noexcept_false_spec;
+        }
     }
 
   exp = build1_loc (loc, THROW_EXPR, void_type_node, exp);

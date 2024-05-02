@@ -17994,9 +17994,7 @@ start_preparsed_function (tree decl1, tree attrs, int flags)
   cfun->language->eh_chain = ggc_cleared_alloc<cp_exception_context>();
   cfun->language->eh_chain->current = noexcept_true_spec;
   cfun->language->eh_chain->saved = noexcept_true_spec;
-  
-  if (!processing_template_decl)
-    push_exception_context();
+
   current_stmt_tree ()->stmts_are_full_exprs_p = 1;
   current_binding_level = bl;
 
@@ -18653,6 +18651,7 @@ finish_function (bool inline_p)
   if (!processing_template_decl)
     {
       auto ctx = get_exception_context();
+      gcc_assert(!ctx->prev);
       if (TYPE_RAISES_EXCEPTIONS(fntype) == auto_except_spec)
         TYPE_RAISES_EXCEPTIONS(fntype) = ctx->current;
       check_agains_spec(ctx->current, TYPE_RAISES_EXCEPTIONS(fntype), flag_static_exceptions);
