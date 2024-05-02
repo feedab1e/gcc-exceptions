@@ -29237,12 +29237,12 @@ cp_parser_handler (cp_parser* parser)
   tree declaration;
 
   cp_parser_require_keyword (parser, RID_CATCH, RT_CATCH);
-  handler = begin_handler ();
   matching_parens parens;
   parens.require_open (parser);
   declaration = cp_parser_exception_declaration (parser);
-  finish_handler_parms (declaration, handler);
   parens.require_close (parser);
+  handler = begin_handler ();
+  finish_handler_parms (declaration, handler);
   cp_parser_compound_statement (parser, NULL, BCS_NORMAL, false);
   finish_handler (handler);
 }
