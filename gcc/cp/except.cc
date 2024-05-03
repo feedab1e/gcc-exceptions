@@ -896,14 +896,18 @@ build_throw (location_t loc, tree exp, tsubst_flags_t complain)
         push_exception_context();
       /* Allocate the space for the exception.  */
       allocate_expr = do_allocate_exception (temp_type);
+      if (!processing_template_decl)
+        pop_exception_context();
       if (allocate_expr == error_mark_node)
 	return error_mark_node;
       allocate_expr = get_target_expr (allocate_expr);
       ptr = TARGET_EXPR_SLOT (allocate_expr);
+      if (!processing_template_decl)
+        push_exception_context();
       TARGET_EXPR_CLEANUP (allocate_expr) = do_free_exception (ptr);
-      CLEANUP_EH_ONLY (allocate_expr) = 1;
       if (!processing_template_decl)
         pop_exception_context();
+      CLEANUP_EH_ONLY (allocate_expr) = 1;
 
       object = build_nop (build_pointer_type (temp_type), ptr);
       object = cp_build_fold_indirect_ref (object);
