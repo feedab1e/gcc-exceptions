@@ -29238,10 +29238,10 @@ cp_parser_handler (cp_parser* parser)
 
   cp_parser_require_keyword (parser, RID_CATCH, RT_CATCH);
   matching_parens parens;
+  handler = begin_handler ();
   parens.require_open (parser);
   declaration = cp_parser_exception_declaration (parser);
   parens.require_close (parser);
-  handler = begin_handler ();
   finish_handler_parms (declaration, handler);
   cp_parser_compound_statement (parser, NULL, BCS_NORMAL, false);
   finish_handler (handler);
