@@ -29230,6 +29230,8 @@ cp_parser_handler_seq (cp_parser* parser)
    handler:
      catch ( exception-declaration ) compound-statement  */
 
+tree
+tsubst_stmt (tree t, tree args, tsubst_flags_t complain, tree in_decl);
 static void
 cp_parser_handler (cp_parser* parser)
 {
@@ -29240,11 +29242,27 @@ cp_parser_handler (cp_parser* parser)
   matching_parens parens;
   handler = begin_handler ();
   parens.require_open (parser);
-  declaration = cp_parser_exception_declaration (parser);
+  {
+    begin_scope (sk_function_parms, NULL);
+    auto _ = make_temp_override (parser->auto_is_implicit_function_template_parm_p);
+    parser->auto_is_implicit_function_template_parm_p = 1;
+    declaration = cp_parser_exception_declaration (parser);
+  }
   parens.require_close (parser);
   finish_handler_parms (declaration, handler);
   cp_parser_compound_statement (parser, NULL, BCS_NORMAL, false);
   finish_handler (handler);
+  leave_scope();
+  if (declaration && TEMPLATE_PARM_P (TREE_TYPE (declaration)))
+    {
+      finish_fully_implicit_template(parser, NULL_TREE);
+      // get rid of the current handler since it's templated and
+      // we are going to spawn non-templated versions of it
+      auto templated_handler = tsi_last (stmt_list_stack->last ());
+      tsi_delink (&templated_handler);
+      local_specialization_stack x;
+      tsubst_stmt (handler, NULL_TREE, tf_warning_or_error, NULL_TREE);
+    }
 }
 
 /* Parse an exception-declaration.

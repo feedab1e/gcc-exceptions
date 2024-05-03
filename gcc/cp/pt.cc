@@ -205,7 +205,7 @@ static void copy_default_args_to_explicit_spec (tree);
 static bool invalid_nontype_parm_type_p (tree, tsubst_flags_t);
 static bool dependent_template_arg_p (tree);
 static bool dependent_type_p_r (tree);
-static tree tsubst_stmt (tree, tree, tsubst_flags_t, tree);
+tree tsubst_stmt (tree, tree, tsubst_flags_t, tree);
 static tree tsubst_decl (tree, tree, tsubst_flags_t, bool = true);
 static tree tsubst_scope (tree, tree, tsubst_flags_t, tree);
 static tree tsubst_name (tree, tree, tsubst_flags_t, tree);
@@ -18432,7 +18432,7 @@ dependent_operand_p (tree t)
 
 /* A superset of tsubst_expr that also handles statement trees.  */
 
-static tree
+tree
 tsubst_stmt (tree t, tree args, tsubst_flags_t complain, tree in_decl)
 {
 #define RETURN(EXP) do { r = (EXP); goto out; } while(0)
@@ -18951,21 +18951,49 @@ tsubst_stmt (tree t, tree args, tsubst_flags_t complain, tree in_decl)
 
     case HANDLER:
       {
-	tree decl = HANDLER_PARMS (t);
+      tree decl = HANDLER_PARMS (t);
+      if (TEMPLATE_PARM_P (TREE_TYPE (decl)))
+        {
+          int depth = args ? TMPL_ARGS_DEPTH (args) : 0;
 
-	if (decl)
-	  {
-	    decl = tsubst (decl, args, complain, in_decl);
-	    /* Prevent instantiate_decl from trying to instantiate
-	       this variable.  We've already done all that needs to be
-	       done.  */
-	    if (decl != error_mark_node)
-	      DECL_TEMPLATE_INSTANTIATED (decl) = 1;
-	  }
-	stmt = begin_handler ();
-	finish_handler_parms (decl, stmt);
-	RECUR (HANDLER_BODY (t));
-	finish_handler (stmt);
+          tree new_args = make_tree_vec (depth + 1);
+          for (int i = 0; i < depth; ++i)
+            {
+              TREE_VEC_ELT(new_args, i) = TMPL_ARGS_LEVEL (args, i + 1);
+            }
+          TMPL_ARGS_LEVEL (new_args, depth + 1) = make_tree_vec (1);
+          for (tree curr = get_exception_context()->saved; curr; curr = TREE_CHAIN (curr))
+            {
+              local_specialization_stack lss {lss_blank};
+              TMPL_ARG (new_args, depth + 1, 0) = TREE_VALUE(curr);
+              tree idecl = tsubst (decl, new_args, complain, in_decl);
+              /* Prevent instantiate_decl from trying to instantiate
+                 this variable.  We've already done all that needs to be
+                 done.  */
+              if (idecl != error_mark_node)
+                DECL_TEMPLATE_INSTANTIATED (idecl) = 1;
+              stmt = begin_handler ();
+              finish_handler_parms (idecl, stmt);
+              tsubst_stmt (HANDLER_BODY (t), new_args, complain, in_decl);
+              finish_handler (stmt);
+            }
+        }
+      else
+        {
+          if (decl)
+            {
+              decl = tsubst (decl, args, complain, in_decl);
+              /* Prevent instantiate_decl from trying to instantiate
+                 this variable.  We've already done all that needs to be
+                 done.  */
+              if (decl != error_mark_node)
+                DECL_TEMPLATE_INSTANTIATED (decl) = 1;
+            }
+          stmt = begin_handler ();
+          finish_handler_parms (decl, stmt);
+          RECUR (HANDLER_BODY (t));
+          finish_handler (stmt);
+        }
       }
       break;
 
