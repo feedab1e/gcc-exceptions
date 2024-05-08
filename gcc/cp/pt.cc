@@ -18952,7 +18952,7 @@ tsubst_stmt (tree t, tree args, tsubst_flags_t complain, tree in_decl)
     case HANDLER:
       {
       tree decl = HANDLER_PARMS (t);
-      if (TEMPLATE_PARM_P (TREE_TYPE (decl)))
+      if (TEMPLATE_HANDLER_P(t))
         {
           int depth = args ? TMPL_ARGS_DEPTH (args) : 0;
 

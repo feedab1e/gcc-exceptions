@@ -29242,20 +29242,21 @@ cp_parser_handler (cp_parser* parser)
   matching_parens parens;
   handler = begin_handler ();
   parens.require_open (parser);
+  auto _ = make_temp_override (parser->fully_implicit_function_template_p);
+  parser->fully_implicit_function_template_p = 0;
   {
-    begin_scope (sk_function_parms, NULL);
     auto _ = make_temp_override (parser->auto_is_implicit_function_template_parm_p);
-    parser->auto_is_implicit_function_template_parm_p = 1;
+    parser->auto_is_implicit_function_template_parm_p = flag_static_exceptions;
     declaration = cp_parser_exception_declaration (parser);
   }
   parens.require_close (parser);
   finish_handler_parms (declaration, handler);
   cp_parser_compound_statement (parser, NULL, BCS_NORMAL, false);
   finish_handler (handler);
-  leave_scope();
-  if (declaration && TEMPLATE_PARM_P (TREE_TYPE (declaration)))
+  if (parser->fully_implicit_function_template_p)
     {
       finish_fully_implicit_template(parser, NULL_TREE);
+      TEMPLATE_HANDLER_P(handler) = 1;
       // get rid of the current handler since it's templated and
       // we are going to spawn non-templated versions of it
       auto templated_handler = tsi_last (stmt_list_stack->last ());
@@ -51325,7 +51326,7 @@ synthesize_implicit_template_parm  (cp_parser *parser, tree constr)
       return error_mark_node;
     }
 
-  gcc_assert (current_binding_level->kind == sk_function_parms);
+  gcc_assert (current_binding_level->kind == sk_function_parms || current_binding_level->kind == sk_catch);
 
   /* We are either continuing a function template that already contains implicit
      template parameters, creating a new fully-implicit function template, or
@@ -51353,7 +51354,7 @@ synthesize_implicit_template_parm  (cp_parser *parser, tree constr)
 
       cp_binding_level *scope = entry_scope;
 
-      while (scope->kind == sk_function_parms)
+      while (scope->kind == sk_function_parms || scope->kind == sk_catch)
 	{
 	  parent_scope = scope;
 	  scope = scope->level_chain;

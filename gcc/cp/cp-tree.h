@@ -725,6 +725,7 @@ struct GTY(()) ptrmem_cst {
 typedef struct ptrmem_cst * ptrmem_cst_t;
 
 #define CLEANUP_P(NODE)		TREE_LANG_FLAG_0 (TRY_BLOCK_CHECK (NODE))
+#define TEMPLATE_HANDLER_P(NODE) TREE_LANG_FLAG_0 (HANDLER_CHECK (NODE))
 
 #define BIND_EXPR_TRY_BLOCK(NODE) \
   TREE_LANG_FLAG_0 (BIND_EXPR_CHECK (NODE))
