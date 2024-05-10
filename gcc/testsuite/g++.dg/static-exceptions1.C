@@ -8,6 +8,9 @@ struct same;
 template<class T>
 struct same<T, T> {};
 
+struct a{};
+struct b : a{};
+
 int test_empty_spec() throw() {
   return 1;
 }
@@ -70,3 +73,7 @@ void check_catch_auto() noexcept {
 	same<decltype(x), float>{};/* { dg-error "invalid use of incomplete type" } */
   }
 }
+
+void check_throws_derived() throw(b);
+void(*check_cast_derived)() throw(a, int) = check_throws_derived;
+void(*check_invalid_cast_derived)() throw(int) = check_throws_derived;/* { dg-error "invalid conversion" } */
