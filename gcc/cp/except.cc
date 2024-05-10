@@ -56,11 +56,18 @@ bool is_noexcept_spec (tree spec)
 }
 bool is_noexcept_false_spec (tree spec)
 {
-  return spec == noexcept_false_spec;
+  return !spec || spec == noexcept_false_spec;
 }
 bool is_uncomputed_spec (tree spec)
 {
-  return spec == noexcept_deferred_spec || spec == auto_except_spec;
+  if(is_noexcept_spec(spec)|| is_noexcept_false_spec(spec))
+    return false;
+  if(DEFERRED_NOEXCEPT_SPEC_P (spec)
+    || UNPARSED_NOEXCEPT_SPEC_P (spec)
+    || spec == noexcept_deferred_spec
+    || spec == auto_except_spec)
+    return true;
+  return !TREE_VALUE(spec) && TREE_PURPOSE(spec);
 }
 bool is_type_list_spec (tree spec)
 {
