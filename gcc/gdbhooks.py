@@ -238,6 +238,13 @@ def init_globals(event):
     global tcc_declaration
     tcc_declaration = tree_code_class_dict['tcc_declaration']
 
+    global cp_global_trees
+    cp_global_trees = gdb.parse_and_eval('cp_global_trees')
+    global cp_tree_index
+    cp_tree_index = gdb.lookup_type('enum cp_tree_index')
+    global cp_global_tree_size
+    cp_global_tree_size = gdb.lookup_global_symbol('CPTI_MAX').value()
+
 gdb.events.new_thread.connect(init_globals)
 
 # Python3 has int() with arbitrary precision (bignum).  Python2 int() is 32-bit
@@ -334,24 +341,30 @@ class TreePrinter:
             result = '<%s 0x%x' % (val_code_name.string(), intptr(self.gdbval))
         except:
             return '<tree 0x%x>' % intptr(self.gdbval)
-        if intptr(val_tclass) == tcc_declaration:
-            tree_DECL_NAME = self.node.DECL_NAME()
-            if tree_DECL_NAME.is_nonnull():
-                 result += ' %s' % tree_DECL_NAME.IDENTIFIER_POINTER()
-            else:
-                pass # TODO: labels etc
-        elif intptr(val_tclass) == tcc_type:
-            tree_TYPE_NAME = Tree(self.gdbval['type_common']['name'])
-            if tree_TYPE_NAME.is_nonnull():
-                if tree_TYPE_NAME.TREE_CODE() == IDENTIFIER_NODE:
-                    result += ' %s' % tree_TYPE_NAME.IDENTIFIER_POINTER()
-                elif tree_TYPE_NAME.TREE_CODE() == TYPE_DECL:
-                    if tree_TYPE_NAME.DECL_NAME().is_nonnull():
-                        result += ' %s' % tree_TYPE_NAME.DECL_NAME().IDENTIFIER_POINTER()
-        if self.node.TREE_CODE() == IDENTIFIER_NODE:
-            result += ' %s' % self.node.IDENTIFIER_POINTER()
-        elif self.node.TREE_CODE() == SSA_NAME:
-            result += ' %u' % self.gdbval['base']['u']['version']
+
+        for i in range(cp_global_tree_size):
+            if cp_global_trees[i] == self.gdbval:
+                result += ' %s' % cp_tree_index.fields()[i].name
+                break
+        else:
+            if intptr(val_tclass) == tcc_declaration:
+                tree_DECL_NAME = self.node.DECL_NAME()
+                if tree_DECL_NAME.is_nonnull():
+                     result += ' %s' % tree_DECL_NAME.IDENTIFIER_POINTER()
+                else:
+                    pass # TODO: labels etc
+            elif intptr(val_tclass) == tcc_type:
+                tree_TYPE_NAME = Tree(self.gdbval['type_common']['name'])
+                if tree_TYPE_NAME.is_nonnull():
+                    if tree_TYPE_NAME.TREE_CODE() == IDENTIFIER_NODE:
+                        result += ' %s' % tree_TYPE_NAME.IDENTIFIER_POINTER()
+                    elif tree_TYPE_NAME.TREE_CODE() == TYPE_DECL:
+                        if tree_TYPE_NAME.DECL_NAME().is_nonnull():
+                            result += ' %s' % tree_TYPE_NAME.DECL_NAME().IDENTIFIER_POINTER()
+            if self.node.TREE_CODE() == IDENTIFIER_NODE:
+                result += ' %s' % self.node.IDENTIFIER_POINTER()
+            elif self.node.TREE_CODE() == SSA_NAME:
+                result += ' %u' % self.gdbval['base']['u']['version']
         # etc
         result += '>'
         return result
