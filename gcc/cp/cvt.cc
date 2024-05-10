@@ -2127,6 +2127,10 @@ noexcept_conv_p (tree to, tree from)
     return false;
   if (!FUNC_OR_METHOD_TYPE_P (from))
     return false;
+  if (flag_static_exceptions)
+    return comp_except_specs(
+                             TYPE_RAISES_EXCEPTIONS(to),
+                             TYPE_RAISES_EXCEPTIONS(from), ce_derived);
   if (!type_throw_all_p (to)
       || type_throw_all_p (from))
     return false;

@@ -2750,6 +2750,8 @@ canonical_eh_spec (tree raises)
   else if (nothrow_spec_p (raises))
     /* throw() -> noexcept.  */
     return noexcept_true_spec;
+  else if (flag_static_exceptions)
+    return raises;
   else
     /* For C++17 type matching, anything else -> nothing.  */
     return NULL_TREE;
@@ -2802,6 +2804,8 @@ build_cp_fntype_variant (tree type, cp_ref_qualifier rqual,
        from TYPE. */
     TYPE_CANONICAL (v) = build_cp_fntype_variant (TYPE_CANONICAL (type),
 						  rqual, cr, false);
+  else if (is_type_list_spec(raises))
+    SET_TYPE_STRUCTURAL_EQUALITY(v);
   else
     /* T is its own canonical type. */
     TYPE_CANONICAL (v) = v;

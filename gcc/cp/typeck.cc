@@ -1455,7 +1455,7 @@ structural_comptypes (tree t1, tree t2, int strict)
       if (flag_noexcept_type
 	  && !comp_except_specs (TYPE_RAISES_EXCEPTIONS (t1),
 				 TYPE_RAISES_EXCEPTIONS (t2),
-				 ce_type))
+				 flag_static_exceptions ? ce_exact : ce_type))
 	return false;
     }
 
