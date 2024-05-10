@@ -18654,7 +18654,13 @@ finish_function (bool inline_p)
       gcc_assert(!ctx->prev);
       if (TYPE_RAISES_EXCEPTIONS(fntype) == auto_except_spec)
         TYPE_RAISES_EXCEPTIONS(fntype) = ctx->current;
-      check_agains_spec(ctx->current, TYPE_RAISES_EXCEPTIONS(fntype), flag_static_exceptions);
+      const bool matches = check_agains_spec(ctx->current,
+                                             TYPE_RAISES_EXCEPTIONS(fntype),
+                                             flag_static_exceptions);
+      gcc_assert(matches
+                 == comp_except_specs(TYPE_RAISES_EXCEPTIONS(fntype),
+                   ctx->current,
+                   ce_derived));
     }
 
   /* If there are no return statements in a function with auto return type,
