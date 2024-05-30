@@ -26959,6 +26959,8 @@ maybe_instantiate_noexcept (tree fn, tsubst_flags_t complain)
 	       let's try again later.  */
 	    return false;
 	}
+      else if (DEFERRED_NOEXCEPT_PATTERN (noex) == auto_identifier)
+        spec = auto_except_spec;
       else if (!(added = !fns->add (fn)))
 	{
 	  /* If hash_set::add returns true, the element was already there.  */
