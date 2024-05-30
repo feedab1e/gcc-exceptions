@@ -29085,7 +29085,7 @@ cp_parser_exception_specification_opt (cp_parser* parser,
   /* In C++17, throw() is equivalent to noexcept (true).  throw()
      is deprecated in C++11 and above as well, but is still widely used,
      so don't warn about it yet.  */
-  else if (cxx_dialect >= cxx17)
+  else if (cxx_dialect >= cxx17 && !flag_static_exceptions)
     type_id_list = noexcept_true_spec;
   else
     type_id_list = empty_except_spec;

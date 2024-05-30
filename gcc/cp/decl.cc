@@ -18658,13 +18658,16 @@ finish_function (bool inline_p)
   if (!processing_template_decl)
     {
       auto ctx = get_exception_context();
-      const bool matches = check_agains_spec(ctx->current,
-                                             TYPE_RAISES_EXCEPTIONS(fntype),
-                                             flag_static_exceptions);
-      gcc_assert(matches
-                 == comp_except_specs(TYPE_RAISES_EXCEPTIONS(fntype),
-                   ctx->current,
-                   ce_derived));
+      if(TYPE_RAISES_EXCEPTIONS(fntype) != noexcept_true_spec)
+        {
+          const bool matches = check_agains_spec(ctx->current,
+                                                 TYPE_RAISES_EXCEPTIONS(fntype),
+                                                 flag_static_exceptions);
+          gcc_assert(matches
+                     == comp_except_specs(TYPE_RAISES_EXCEPTIONS(fntype),
+                       ctx->current,
+                       ce_derived));
+        }
     }
 
   /* If there are no return statements in a function with auto return type,
