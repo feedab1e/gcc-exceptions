@@ -19301,10 +19301,12 @@ undeduced_auto_decl (tree decl)
 {
   if (cxx_dialect < cxx11)
     return false;
-  STRIP_ANY_LOCATION_WRAPPER (decl);
-  return ((VAR_OR_FUNCTION_DECL_P (decl)
-	   || TREE_CODE (decl) == TEMPLATE_DECL)
-	  && type_uses_auto (TREE_TYPE (decl)));
+  STRIP_ANY_LOCATION_WRAPPER(decl);
+  return ((VAR_OR_FUNCTION_DECL_P(decl)
+      || TREE_CODE(decl) == TEMPLATE_DECL)
+    && (type_uses_auto(TREE_TYPE(decl)) || (TREE_CODE(decl) == FUNCTION_DECL &&
+      TYPE_RAISES_EXCEPTIONS(TREE_TYPE(decl)) ==
+      auto_except_spec)));
 }
 
 /* Complain if DECL has an undeduced return type.  */
