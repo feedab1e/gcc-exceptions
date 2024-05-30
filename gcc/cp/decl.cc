@@ -18581,6 +18581,13 @@ finish_function (bool inline_p)
      error_mark_node.  */
   gcc_assert (DECL_INITIAL (fndecl) == error_mark_node);
 
+  if (!processing_template_decl)
+    {
+      auto ctx = get_exception_context();
+      gcc_assert(!ctx->prev);
+      if (TYPE_RAISES_EXCEPTIONS(fntype) == auto_except_spec)
+        TYPE_RAISES_EXCEPTIONS(fntype) = ctx->current;
+    }
   if (coro_p)
     {
       /* Only try to emit the coroutine outlined helper functions if the
@@ -18651,9 +18658,6 @@ finish_function (bool inline_p)
   if (!processing_template_decl)
     {
       auto ctx = get_exception_context();
-      gcc_assert(!ctx->prev);
-      if (TYPE_RAISES_EXCEPTIONS(fntype) == auto_except_spec)
-        TYPE_RAISES_EXCEPTIONS(fntype) = ctx->current;
       const bool matches = check_agains_spec(ctx->current,
                                              TYPE_RAISES_EXCEPTIONS(fntype),
                                              flag_static_exceptions);
