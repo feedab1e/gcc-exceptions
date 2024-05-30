@@ -29249,10 +29249,22 @@ cp_parser_handler (cp_parser* parser)
     parser->auto_is_implicit_function_template_parm_p = flag_static_exceptions;
     declaration = cp_parser_exception_declaration (parser);
   }
-  parens.require_close (parser);
-  finish_handler_parms (declaration, handler);
-  cp_parser_compound_statement (parser, NULL, BCS_NORMAL, false);
-  finish_handler (handler);
+  {
+    auto fully_implicit_function_template_p
+      = make_temp_override (parser->fully_implicit_function_template_p);
+    parser->fully_implicit_function_template_p = false;
+    auto implicit_template_parms
+      = make_temp_override (parser->implicit_template_parms);
+    parser->implicit_template_parms = 0;
+    auto implicit_template_scope
+      = make_temp_override (parser->implicit_template_scope);
+    parser->implicit_template_scope = 0;
+
+    parens.require_close (parser);
+    finish_handler_parms (declaration, handler);
+    cp_parser_compound_statement (parser, NULL, BCS_NORMAL, false);
+    finish_handler (handler);
+  }
   if (parser->fully_implicit_function_template_p)
     {
       finish_fully_implicit_template(parser, NULL_TREE);
