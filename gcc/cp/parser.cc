@@ -12005,6 +12005,7 @@ cp_parser_lambda_declarator_opt (cp_parser* parser, tree lambda_expr)
   /* Parse optional exception specification.  */
   exception_spec
     = cp_parser_exception_specification_opt (parser, CP_PARSER_FLAGS_NONE);
+  if(!exception_spec && flag_static_exceptions) exception_spec = auto_except_spec;
 
   if (omitted_parms_loc && exception_spec)
     {
