@@ -609,7 +609,10 @@ expand_start_catch_block (tree decl)
   push_exception_context();
   auto ctx = get_exception_context();
   ctx->in_flight = type;
-  subtract_exception(ctx->prev->saved, type);
+  if(!type)
+    ctx->prev->saved = empty_except_spec;
+  else
+    subtract_exception(ctx->prev->saved, type);
 
   push_exception_context();
   /* Call __cxa_end_catch at the end of processing the exception.  */
