@@ -2299,6 +2299,11 @@ static bool
 cp_check_qualified_type (const_tree cand, const_tree base, int type_quals,
 			 cp_ref_qualifier rqual, tree raises, bool late)
 {
+  if ((raises == noexcept_true_spec
+       && TYPE_RAISES_EXCEPTIONS(cand) == empty_except_spec)
+      || (raises == empty_except_spec
+          && TYPE_RAISES_EXCEPTIONS(cand) == noexcept_true_spec))
+    return false;
   return (TYPE_QUALS (cand) == type_quals
 	  && check_base_type (cand, base)
 	  && comp_except_specs (raises, TYPE_RAISES_EXCEPTIONS (cand),

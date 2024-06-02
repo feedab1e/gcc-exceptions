@@ -1224,6 +1224,9 @@ comp_except_specs (const_tree t1, const_tree t2, int exact)
   /* If any noexcept is left, it is only comparable to itself;
      either we're looking for an exact match or we're redeclaring a
      template with dependent noexcept.  */
+  if ((t1 == noexcept_true_spec && t2 == empty_except_spec) || (t2 ==
+    noexcept_true_spec && t1 == empty_except_spec))
+    return true;
   if ((t1 && TREE_PURPOSE (t1))
       || (t2 && TREE_PURPOSE (t2)))
     return (t1 && t2

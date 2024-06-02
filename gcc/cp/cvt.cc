@@ -2118,8 +2118,7 @@ can_convert_tx_safety (tree to, tree from)
    This is just a subroutine of fnptr_conv_p.  */
 
 static bool
-noexcept_conv_p (tree to, tree from)
-{
+noexcept_conv_p (tree to, tree from) {
   if (!flag_noexcept_type)
     return false;
 
@@ -2128,13 +2127,23 @@ noexcept_conv_p (tree to, tree from)
   if (!FUNC_OR_METHOD_TYPE_P (from))
     return false;
   if (flag_static_exceptions)
-    return comp_except_specs(
-                             TYPE_RAISES_EXCEPTIONS(to),
-                             TYPE_RAISES_EXCEPTIONS(from), ce_derived);
-  if (!type_throw_all_p (to)
+    {
+      if (!comp_except_specs(TYPE_RAISES_EXCEPTIONS(to),
+                             TYPE_RAISES_EXCEPTIONS(from),
+                             ce_derived))
+        return false;
+      if (comp_except_specs(TYPE_RAISES_EXCEPTIONS(to),
+                             TYPE_RAISES_EXCEPTIONS(from),
+                             ce_exact))
+        return false;
+    }
+  else if (!type_throw_all_p (to)
       || type_throw_all_p (from))
     return false;
-  tree v = build_exception_variant (from, NULL_TREE);
+  tree v = build_exception_variant(from,
+                                   flag_static_exceptions
+                                     ? TYPE_RAISES_EXCEPTIONS(to)
+                                     : NULL_TREE);
   return same_type_p (to, v);
 }
 
