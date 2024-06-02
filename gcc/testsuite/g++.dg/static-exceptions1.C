@@ -52,18 +52,18 @@ void check_try_valid() noexcept {try {
   catch(float) {}
 }
 
-void check_try_invalid() noexcept {try {
+void check_try_invalid() throw() {try {
     helper_throws_float();
 }
   catch(int) {}
 }/* { dg-error "Invalid eh spec !!!" } */
-void check_try_all() noexcept {try {
+void check_try_all() throw() {try {
     helper_throws_float();
-}
+  }
   catch(...) {}
 }
 
-void check_catch_auto() noexcept {
+void check_catch_auto() throw() {
   try {
     helper_throws_float();
     helper_throws_int();
