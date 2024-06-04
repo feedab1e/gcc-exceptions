@@ -149,18 +149,32 @@ import gdb.printing
 import gdb.types
 import gdb.events
 
+def convert_codes(tree_code_dict, cp_tree_code_dict):
+    return {int(v):int(cp_tree_code_dict.get("TS_CP_"+k, cp_tree_code_dict["TS_CP_GENERIC"])) for k, v in tree_code_dict.items()}
+
+
 def init_globals(event):
     # Convert "enum tree_code" (tree.def and tree.h) to a dict:
     global tree_code_dict
     tree_code_dict = gdb.types.make_enum_dict(gdb.lookup_type('enum tree_code'))
     global tree_type_node
     tree_type_node = gdb.lookup_type('union tree_node')
+    global lang_tree_type_node
+    lang_tree_type_node = gdb.lookup_type('union lang_tree_node')
+    global cp_tree_node_structure_enum
+    cp_tree_node_structure_enum = gdb.types.make_enum_dict(gdb.lookup_type('enum cp_tree_node_structure_enum'))
     global tree_decl_common_type_node
     tree_decl_common_type_node = gdb.lookup_type('struct tree_decl_common')
     global template_parm_index_type_node
     template_parm_index_type_node = gdb.lookup_type('struct template_parm_index').pointer()
     global tree_operand_length
     tree_operand_length = gdb.lookup_global_symbol('tree_operand_length').value()
+    global cp_code_structure
+    cp_code_structure = convert_codes(tree_code_dict, cp_tree_node_structure_enum)
+    global structure_generic
+    structure_generic = int(cp_tree_node_structure_enum['TS_CP_GENERIC'])
+    global structure_inverse
+    structure_inverse = {v:k[6:].lower() for k, v in cp_tree_node_structure_enum.items()}
 
     # constexpr inline enum tree_code_class tree_code_type[] = { ... };
     # #define TREE_CODE_CLASS(CODE)	tree_code_type[(int) (CODE)]
@@ -270,7 +284,11 @@ class Tree:
         as per:
           #define TREE_CODE(NODE) ((enum tree_code) (NODE)->base.code)
         """
-        return self.gdbval['base']['code']
+        try:
+            int(self.gdbval['base']['code'])
+            return self.gdbval['base']['code']
+        except gdb.MemoryError:
+            return 0xa5a5
 
     def DECL_NAME(self):
         """
@@ -293,9 +311,14 @@ class Tree:
 class TreePrinter:
     "Prints a tree"
 
-    def __init__ (self, gdbval):
+    def __init__ (self, gdbval, frombase = False):
         self.gdbval = gdbval
         self.node = Tree(gdbval)
+        self.is_lang = False
+        if not frombase and self.node.is_nonnull() and cp_code_structure.get(int(self.node.TREE_CODE()), structure_generic) != structure_generic:
+            self.is_lang = True
+            print ("THIS RUNS")
+            self.lang = gdb.default_visualizer(self.gdbval.cast(lang_tree_type_node.pointer()))
 
     def num_children(self):
         if intptr(self.gdbval) == 0:
@@ -303,6 +326,10 @@ class TreePrinter:
         val_TREE_CODE = self.node.TREE_CODE()
         if val_TREE_CODE == 0xa5a5:
             return 0
+        if self.is_lang:
+            foo = self.lang.num_children()
+            print(foo)
+            return 2
         count = 0
         for n in range(64):
             contains = 1 if tree_structure[val_TREE_CODE][n] else 0
@@ -314,6 +341,9 @@ class TreePrinter:
             return
         val_TREE_CODE = self.node.TREE_CODE()
         if val_TREE_CODE == 0xa5a5:
+            return
+        if self.is_lang:
+            yield from self.lang.children()
             return
         curr = self.gdbval
         for i, field in enumerate(tree_type_node.fields()):
@@ -368,6 +398,18 @@ class TreePrinter:
         # etc
         result += '>'
         return result
+
+class TreeLangPrinter(TreePrinter):
+    def __init__ (self, gdbval):
+        super().__init__(gdbval.cast(tree_type_node.pointer()), True)
+        self.newgdbval = gdbval
+    def children(self):
+        code = cp_code_structure[int(self.node.TREE_CODE())]
+        yield structure_inverse[code], self.newgdbval[structure_inverse[code]]
+    def num_children(self):
+        return 1
+
+
 
 class TreeStmtListPrinter:
     "Prints a tree_statement_list part of tree"
@@ -747,6 +789,8 @@ def build_pretty_printer():
     pp = GdbPrettyPrinters('gcc')
     pp.add_printer_for_types(['tree', 'const_tree', 'tree_node *', 'const tree_node *'],
                              'tree', TreePrinter)
+    pp.add_printer_for_types(['lang_tree', 'const_lang_tree', 'lang_tree_node *', 'const lang_tree_node *'],
+                             'lang_tree', TreeLangPrinter)
     pp.add_printer_for_types(['tree_exp'],
                              'tree_exp', TreeExpPrinter)
     pp.add_printer_for_types(['tree_list'],
