@@ -184,8 +184,10 @@ void subtract_exception(tree& spec, tree exception)
 
   if (is_noexcept_spec(spec)) return;
   if (is_noexcept_false_spec(spec))
-    if(exception) return;
-    else goto set_noexcept;
+    {
+      if(exception) return;
+      else goto set_noexcept;
+    }
   for(; spec && can_convert_eh(exception, TREE_VALUE(spec)); spec = TREE_CHAIN(spec));
   if (!spec)
     goto set_noexcept;
@@ -207,11 +209,11 @@ bool check_agains_spec (tree spec, tree check, bool issue_error)
   gcc_assert(!is_uncomputed_spec(check));
   if (is_noexcept_false_spec(check)) return true;
   if (is_noexcept_spec(spec)) return true;
-  if (is_noexcept_false_spec(spec) || !is_noexcept_spec(spec) && is_noexcept_spec(check))
+  if (is_noexcept_false_spec(spec) || (!is_noexcept_spec(spec) && is_noexcept_spec(check)))
     {
       if (issue_error)
         {
-          error("Invalid eh spec !!!");
+          error("Invalid eh spec");
           inform (input_location, "cannot convert spec %qX into %qX",spec, check);
         }
       return false;
@@ -232,7 +234,7 @@ bool check_agains_spec (tree spec, tree check, bool issue_error)
         {
           if (issue_error)
             {
-              error ("Invalid eh spec !!!");
+              error ("Invalid eh spec");
               inform (input_location, "cannot convert type %qT into any of %qX", TREE_VALUE(spec), check);
             }
           matches = false;
