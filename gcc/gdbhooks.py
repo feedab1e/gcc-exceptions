@@ -456,6 +456,7 @@ class TreeListPrinter:
         n = 0
         while curr != 0:
             yield (f'[{n}]', curr['list']['value'])
+            yield (f'[{n}.purpose]', curr['list']['purpose'])
             n+=1
             curr = curr['common']['chain']
 class TreeDeclCommonPrinter:
