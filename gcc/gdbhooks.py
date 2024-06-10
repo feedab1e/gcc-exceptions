@@ -218,6 +218,10 @@ def init_globals(event):
     CONCEPT_DECL = tree_code_dict['CONCEPT_DECL']
     global TEMPLATE_PARM_INDEX
     TEMPLATE_PARM_INDEX = tree_code_dict['TEMPLATE_PARM_INDEX']
+    global INTEGER_CST
+    INTEGER_CST = tree_code_dict['INTEGER_CST']
+    global STRING_CST
+    STRING_CST = tree_code_dict['STRING_CST']
 
     global field_map
     field_map = {
@@ -258,6 +262,16 @@ def init_globals(event):
     cp_tree_index = gdb.lookup_type('enum cp_tree_index')
     global cp_global_tree_size
     cp_global_tree_size = gdb.lookup_global_symbol('CPTI_MAX').value()
+    global HOST_BITS_PER_WIDE_INT
+    HOST_BITS_PER_WIDE_INT = int(64)
+    global NUM_POLY_INT_COEFFS
+    NUM_POLY_INT_COEFFS = int(1)
+
+    global superscript
+    superscript = str.maketrans("0123456789+-()=in", "⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁽⁾⁼ⁱⁿ");
+    global subscript
+    subscript = str.maketrans("0123456789+-()=aeoxhklmnpst",
+                              "₀₁₂₃₄₅₆₇₈₉₊₋₍₎₌ₐₑₒₓₕₖₗₘₙₚₛₜ");
 
 gdb.events.new_thread.connect(init_globals)
 
@@ -395,6 +409,10 @@ class TreePrinter:
                 result += ' %s' % self.node.IDENTIFIER_POINTER()
             elif self.node.TREE_CODE() == SSA_NAME:
                 result += ' %u' % self.gdbval['base']['u']['version']
+            elif self.node.TREE_CODE() == INTEGER_CST:
+                result += ' %s' % TreeIntCstPrinter(self.gdbval['int_cst']).to_string()
+            elif self.node.TREE_CODE() == STRING_CST:
+                result += ' %s' % TreeStringCstPrinter(self.gdbval['string']).to_string()
         # etc
         result += '>'
         return result
@@ -409,7 +427,56 @@ class TreeLangPrinter(TreePrinter):
     def num_children(self):
         return 1
 
+class TreeIntCstPrinter:
 
+    def __init__ (self, gdbval):
+        self.gdbval = gdbval
+        self.treeval = gdbval.address.cast(tree_type_node.pointer())
+    def to_string(self):
+        len = self.treeval['base']['u']['int_length']['extended']
+        unsigned = bool(self.treeval['base']['u']['bits']['unsigned_flag'])
+        intmax = 2 ** HOST_BITS_PER_WIDE_INT
+        unsign = lambda x: int(x) + intmax if int(x) > 0 else int(x)
+        head = int(self.gdbval['val'][len - 1])
+        head = unsign(head) if unsigned else head
+        for i in range(len - 2, -1, -1):
+            head *= intmax
+            head += int(self.gdbval['val'][i])
+        return f'{head}'
+class TreePolyIntCstPrinter:
+
+    def __init__ (self, gdbval):
+        self.gdbval = gdbval
+    def to_string(self):
+        real = TreeIntCstPrinter(self.gdbval['real']).to_string()
+        imag = TreeIntCstPrinter(self.gdbval['imag']).to_string()
+        return real + (' ' if imag[0] == '-' else ' + ') + imag
+class TreePolyIntCstPrinter:
+
+    def __init__ (self, gdbval):
+        self.gdbval = gdbval
+    def to_string(self):
+        res = ''
+        plus_sign = ''
+        for i in range(NUM_POLY_INT_COEFFS):
+            res += plus_sign
+            res += TreeIntCstPrinter(self.gdbval['val'][i]).to_string()
+            if(plus_sign == '+'):
+                res += f'x{str(i).translate(superscript)}'
+            plus_sign = '+'
+
+
+class TreeStringCstPrinter:
+
+    def __init__ (self, gdbval):
+        self.gdbval = gdbval
+    def display_hint (self):
+        return 'string'
+    def to_string(self):
+        out = ''
+        for i in range(self.gdbval['length']):
+            out += self.gdbval['str'][i]
+        return out
 
 class TreeStmtListPrinter:
     "Prints a tree_statement_list part of tree"
