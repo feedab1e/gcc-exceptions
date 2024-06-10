@@ -152,7 +152,6 @@ import gdb.events
 def convert_codes(tree_code_dict, cp_tree_code_dict):
     return {int(v):int(cp_tree_code_dict.get("TS_CP_"+k, cp_tree_code_dict["TS_CP_GENERIC"])) for k, v in tree_code_dict.items()}
 
-
 def init_globals(event):
     # Convert "enum tree_code" (tree.def and tree.h) to a dict:
     global tree_code_dict
@@ -194,10 +193,6 @@ def init_globals(event):
     val_tree_code_name = gdb.parse_and_eval('tree_code_name')
 
     # ...and look up specific values for use later:
-    global IDENTIFIER_NODE
-    IDENTIFIER_NODE = tree_code_dict['IDENTIFIER_NODE']
-    global TYPE_DECL
-    TYPE_DECL = tree_code_dict['TYPE_DECL']
 
     global ENUMERAL_TYPE
     ENUMERAL_TYPE = tree_code_dict['ENUMERAL_TYPE']
@@ -230,6 +225,54 @@ def init_globals(event):
     global TYPE_PACK_EXPANSION
     TYPE_PACK_EXPANSION = tree_code_dict['TYPE_PACK_EXPANSION']
 
+    global EXPR_PACK_EXPANSION
+    EXPR_PACK_EXPANSION = tree_code_dict['EXPR_PACK_EXPANSION']
+    global NONTYPE_ARGUMENT_PACK
+    NONTYPE_ARGUMENT_PACK = tree_code_dict['NONTYPE_ARGUMENT_PACK']
+    global UNARY_LEFT_FOLD_EXPR
+    UNARY_LEFT_FOLD_EXPR = tree_code_dict['UNARY_LEFT_FOLD_EXPR']
+    global UNARY_RIGHT_FOLD_EXPR
+    UNARY_RIGHT_FOLD_EXPR = tree_code_dict['UNARY_RIGHT_FOLD_EXPR']
+    global BINARY_LEFT_FOLD_EXPR
+    BINARY_LEFT_FOLD_EXPR = tree_code_dict['BINARY_LEFT_FOLD_EXPR']
+    global BINARY_RIGHT_FOLD_EXPR
+    BINARY_RIGHT_FOLD_EXPR = tree_code_dict['BINARY_RIGHT_FOLD_EXPR']
+    global REQUIRES_EXPR
+    REQUIRES_EXPR = tree_code_dict['REQUIRES_EXPR']
+    global ATOMIC_CONSTR
+    ATOMIC_CONSTR = tree_code_dict['ATOMIC_CONSTR']
+    global CHECK_CONSTR
+    CHECK_CONSTR = tree_code_dict['CHECK_CONSTR']
+    global TEMPLATE_ID_EXPR
+    TEMPLATE_ID_EXPR = tree_code_dict['TEMPLATE_ID_EXPR']
+    global STMT_EXPR
+    STMT_EXPR = tree_code_dict['STMT_EXPR']
+    global MUST_NOT_THROW_EXPR
+    MUST_NOT_THROW_EXPR = tree_code_dict['MUST_NOT_THROW_EXPR']
+    global CLEANUP
+    CLEANUP = tree_code_dict['CLEANUP']
+    global EH_SPEC_BLOCK
+    EH_SPEC_BLOCK = tree_code_dict['EH_SPEC_BLOCK']
+    global HANDLER
+    HANDLER = tree_code_dict['HANDLER']
+    global TRY_BLOCK
+    TRY_BLOCK = tree_code_dict['TRY_BLOCK']
+    global EXPR_STMT
+    EXPR_STMT = tree_code_dict['EXPR_STMT']
+    global IF_STMT
+    IF_STMT = tree_code_dict['IF_STMT']
+    global RANGE_FOR_STMT
+    RANGE_FOR_STMT = tree_code_dict['RANGE_FOR_STMT']
+    global USING_STMT
+    USING_STMT = tree_code_dict['USING_STMT']
+    global AGGR_INIT_EXPR
+    AGGR_INIT_EXPR = tree_code_dict['AGGR_INIT_EXPR']
+    global VEC_INIT_EXPR
+    VEC_INIT_EXPR = tree_code_dict['VEC_INIT_EXPR']
+    global CALL_EXPR
+    CALL_EXPR = tree_code_dict['CALL_EXPR']
+    global BIND_EXPR
+    BIND_EXPR = tree_code_dict['BIND_EXPR']
 
     global SSA_NAME
     SSA_NAME = tree_code_dict['SSA_NAME']
@@ -237,18 +280,6 @@ def init_globals(event):
     TREE_LIST = tree_code_dict['TREE_LIST']
     global TREE_VEC
     TREE_VEC = tree_code_dict['TREE_VEC']
-    global EXPR_PACK_EXPANSION
-    EXPR_PACK_EXPANSION = tree_code_dict['EXPR_PACK_EXPANSION']
-    global BIND_EXPR
-    BIND_EXPR = tree_code_dict['BIND_EXPR']
-    global EH_SPEC_BLOCK
-    EH_SPEC_BLOCK = tree_code_dict['EH_SPEC_BLOCK']
-    global HANDLER
-    HANDLER = tree_code_dict['HANDLER']
-    global TRY_BLOCK
-    TRY_BLOCK = tree_code_dict['TRY_BLOCK']
-    global TEMPLATE_ID_EXPR
-    TEMPLATE_ID_EXPR = tree_code_dict['TEMPLATE_ID_EXPR']
     global CONCEPT_DECL
     CONCEPT_DECL = tree_code_dict['CONCEPT_DECL']
     global TEMPLATE_PARM_INDEX
@@ -257,6 +288,10 @@ def init_globals(event):
     INTEGER_CST = tree_code_dict['INTEGER_CST']
     global STRING_CST
     STRING_CST = tree_code_dict['STRING_CST']
+    global IDENTIFIER_NODE
+    IDENTIFIER_NODE = tree_code_dict['IDENTIFIER_NODE']
+    global TYPE_DECL
+    TYPE_DECL = tree_code_dict['TYPE_DECL']
 
     global field_map
     field_map = {
@@ -271,6 +306,7 @@ def init_globals(event):
         }
     }
 
+    fold_op = lambda v, t: ('op', val_tree_code_name[int(v['operands'][0]['base']['code'])])
     global exp_op_map
     exp_op_map = {
         int(BIND_EXPR) : ['vars', 'stmt', 'scope'],
@@ -278,6 +314,26 @@ def init_globals(event):
         int(TRY_BLOCK) : ['try-stmts', 'handlers'],
         int(TEMPLATE_ID_EXPR) : ['tmpl', 'args'],
         int(EXPR_PACK_EXPANSION) : ['pattern', 'parameter-packs', 'extra-args'],
+        int(ATOMIC_CONSTR) : ['map'],
+        int(CHECK_CONSTR) : ['concept', 'args'],
+        int(REQUIRES_EXPR) : ['parms', 'reqs', 'extra-args'],
+        int(NONTYPE_ARGUMENT_PACK) : ['args'],
+        int(UNARY_LEFT_FOLD_EXPR) : [fold_op, 'pack', 'init'],
+        int(UNARY_RIGHT_FOLD_EXPR) : [fold_op, 'pack', 'init'],
+        int(BINARY_LEFT_FOLD_EXPR) : [fold_op, 'pack', 'init'],
+        int(BINARY_RIGHT_FOLD_EXPR) : [fold_op, 'pack', 'init'],
+        int(AGGR_INIT_EXPR) : ['fn', 'slot', ''],
+        int(VEC_INIT_EXPR) : ['fn', 'slot', ''],
+        int(CALL_EXPR) : ['', 'fn', 'static-chain'],
+        int(MUST_NOT_THROW_EXPR) : ['cond'],
+        int(EH_SPEC_BLOCK) : ['stmts', 'raises'],
+        int(USING_STMT) : ['namespace'],
+        int(CLEANUP) : ['body', 'expr', 'decl'],
+        int(IF_STMT) : ['cond', 'then', 'else', 'scope'],
+        int(RANGE_FOR_STMT) : ['decl', 'expr', 'body', 'scope', 'unroll', 'init'],
+        int(STMT_EXPR) : ['stmt'],
+        int(EXPR_STMT) : ['expr'],
+
     }
     global type_non_common_map
     type_non_common_map = {
@@ -562,7 +618,16 @@ class TreeExpPrinter:
         curr = self.gdbval
         map = exp_op_map.get(int(self.treeval['typed']['base']['code']), None)
         for i in range(chld):
-            yield (f'[{map[i] if map else i}]', curr['operands'][i])
+            elem = None
+            if map:
+                elem = map[i]
+                if not elem:
+                    elem = i - len(map)
+                elif type(elem) is not str:
+                    yield elem(self.gdbval, self.treeval)
+                    continue
+
+            yield f'[{elem or i}]', curr['operands'][i]
 
 class TreeTypeNonCommonPrinter:
     "Prints a tree_exp part of tree"
