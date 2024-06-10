@@ -198,12 +198,47 @@ def init_globals(event):
     IDENTIFIER_NODE = tree_code_dict['IDENTIFIER_NODE']
     global TYPE_DECL
     TYPE_DECL = tree_code_dict['TYPE_DECL']
+
+    global ENUMERAL_TYPE
+    ENUMERAL_TYPE = tree_code_dict['ENUMERAL_TYPE']
+    global ARRAY_TYPE
+    ARRAY_TYPE = tree_code_dict['ARRAY_TYPE']
+    global RECORD_TYPE
+    RECORD_TYPE = tree_code_dict['RECORD_TYPE']
+    global UNION_TYPE
+    UNION_TYPE = tree_code_dict['UNION_TYPE']
+    global QUAL_UNION_TYPE
+    QUAL_UNION_TYPE = tree_code_dict['QUAL_UNION_TYPE']
+    global FUNCTION_TYPE
+    FUNCTION_TYPE = tree_code_dict['FUNCTION_TYPE']
+    global METHOD_TYPE
+    METHOD_TYPE = tree_code_dict['METHOD_TYPE']
+    global BOUND_TEMPLATE_TEMPLATE_PARM
+    BOUND_TEMPLATE_TEMPLATE_PARM = tree_code_dict['BOUND_TEMPLATE_TEMPLATE_PARM']
+    global DECLTYPE_TYPE
+    DECLTYPE_TYPE = tree_code_dict['DECLTYPE_TYPE']
+    global TYPEOF_TYPE
+    TYPEOF_TYPE = tree_code_dict['TYPEOF_TYPE']
+    global TYPENAME_TYPE
+    TYPENAME_TYPE = tree_code_dict['TYPENAME_TYPE']
+    global TRAIT_TYPE
+    TRAIT_TYPE = tree_code_dict['TRAIT_TYPE']
+    global DEPENDENT_OPERATOR_TYPE
+    DEPENDENT_OPERATOR_TYPE = tree_code_dict['DEPENDENT_OPERATOR_TYPE']
+    global BASES
+    BASES = tree_code_dict['BASES']
+    global TYPE_PACK_EXPANSION
+    TYPE_PACK_EXPANSION = tree_code_dict['TYPE_PACK_EXPANSION']
+
+
     global SSA_NAME
     SSA_NAME = tree_code_dict['SSA_NAME']
     global TREE_LIST
     TREE_LIST = tree_code_dict['TREE_LIST']
     global TREE_VEC
     TREE_VEC = tree_code_dict['TREE_VEC']
+    global EXPR_PACK_EXPANSION
+    EXPR_PACK_EXPANSION = tree_code_dict['EXPR_PACK_EXPANSION']
     global BIND_EXPR
     BIND_EXPR = tree_code_dict['BIND_EXPR']
     global EH_SPEC_BLOCK
@@ -242,6 +277,26 @@ def init_globals(event):
         int(HANDLER) : ['params', 'body'],
         int(TRY_BLOCK) : ['try-stmts', 'handlers'],
         int(TEMPLATE_ID_EXPR) : ['tmpl', 'args'],
+        int(EXPR_PACK_EXPANSION) : ['pattern', 'parameter-packs', 'extra-args'],
+    }
+    global type_non_common_map
+    type_non_common_map = {
+        int(ENUMERAL_TYPE) : ['values', '', '', 'template-info'],
+        int(RECORD_TYPE) : ['fields', 'vfield', 'binfo', 'template-info'],
+        int(UNION_TYPE) : ['fields', 'vfield', 'binfo', 'template-info'],
+        int(QUAL_UNION_TYPE) : ['fields', 'vfield', 'binfo', 'template-info'],
+        int(FUNCTION_TYPE) : ['args', '', 'basetype', 'raises'],
+        int(METHOD_TYPE) : ['args', '', 'basetype', 'raises'],
+        int(BOUND_TEMPLATE_TEMPLATE_PARM) : ['index', '', '', 'template-info'],
+        int(DECLTYPE_TYPE) : ['expr', '', '', ''],
+        int(TYPEOF_TYPE) : ['expr', '', '', ''],
+        int(TYPENAME_TYPE) : ['fullname', '', '', ''],
+        int(TRAIT_TYPE) : ['kind', '1', '2', ''],
+        int(DEPENDENT_OPERATOR_TYPE) : ['saved-lookups', '', '', ''],
+        int(BASES) : ['type', '', '', ''],
+        int(TYPE_PACK_EXPANSION) : [
+            lambda v, t:('[pattern]', t['typed']['type']),
+            'parameter-packs', 'extra-args', ''],
     }
 
     # tree_node_structure_enum
@@ -428,7 +483,6 @@ class TreeLangPrinter(TreePrinter):
         return 1
 
 class TreeIntCstPrinter:
-
     def __init__ (self, gdbval):
         self.gdbval = gdbval
         self.treeval = gdbval.address.cast(tree_type_node.pointer())
@@ -444,15 +498,14 @@ class TreeIntCstPrinter:
             head += int(self.gdbval['val'][i])
         return f'{head}'
 class TreePolyIntCstPrinter:
-
     def __init__ (self, gdbval):
         self.gdbval = gdbval
     def to_string(self):
         real = TreeIntCstPrinter(self.gdbval['real']).to_string()
         imag = TreeIntCstPrinter(self.gdbval['imag']).to_string()
         return real + (' ' if imag[0] == '-' else ' + ') + imag
-class TreePolyIntCstPrinter:
 
+class TreePolyIntCstPrinter:
     def __init__ (self, gdbval):
         self.gdbval = gdbval
     def to_string(self):
@@ -492,7 +545,6 @@ class TreeStmtListPrinter:
             n += 1
             curr = curr['next']
 
-
 class TreeExpPrinter:
     "Prints a tree_exp part of tree"
 
@@ -508,9 +560,36 @@ class TreeExpPrinter:
         if chld == 0:
             return
         curr = self.gdbval
-        map = exp_op_map.get(int(curr['typed']['base']['code']), None)
+        map = exp_op_map.get(int(self.treeval['typed']['base']['code']), None)
         for i in range(chld):
             yield (f'[{map[i] if map else i}]', curr['operands'][i])
+
+class TreeTypeNonCommonPrinter:
+    "Prints a tree_exp part of tree"
+
+    def __init__ (self, gdbval):
+        self.gdbval = gdbval
+        self.treeval = gdbval.address.cast(tree_type_node.pointer())
+
+    def children (self):
+        curr = self.gdbval
+        typ = self.gdbval.type
+        print('HERE')
+        map = type_non_common_map.get(int(self.treeval['typed']['base']['code']), None)
+        head_override = 1
+        for i, field in enumerate(typ.fields()):
+            if head_override > 0:
+                yield field.name, curr[field]
+                head_override -= 1
+            else:
+                elem = None
+                if map:
+                    elem = map[i - 1]
+                    if type(elem) is not str:
+                        yield elem(curr, self.treeval)
+                        continue
+                if elem != '':
+                    yield f'[{elem}]' if elem else field.name, curr[field]
 
 class TreeListPrinter:
     "Prints a tree_list part of tree"
@@ -526,6 +605,7 @@ class TreeListPrinter:
             yield (f'[{n}.purpose]', curr['list']['purpose'])
             n+=1
             curr = curr['common']['chain']
+
 class TreeDeclCommonPrinter:
     "Prints a tree_decl_common part of tree"
 
@@ -542,7 +622,6 @@ class TreeDeclCommonPrinter:
                     yield (x, self.gdbval[field])
             else:
                 yield field, self.gdbval[field]
-
 
 class TreeVecPrinter:
     "Prints a tree_vec part of tree"
@@ -868,6 +947,8 @@ def build_pretty_printer():
                              'tree_poly_int_cst', TreePolyIntCstPrinter)
     pp.add_printer_for_types(['tree_exp'],
                              'tree_exp', TreeExpPrinter)
+    pp.add_printer_for_types(['tree_type_non_common'],
+                             'tree_type_non_common', TreeTypeNonCommonPrinter)
     pp.add_printer_for_types(['tree_list'],
                              'tree_list', TreeListPrinter)
     pp.add_printer_for_types(['tree_statement_list'],
