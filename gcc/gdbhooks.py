@@ -143,6 +143,7 @@ import os.path
 import re
 import sys
 import tempfile
+from collections import namedtuple
 
 import gdb
 import gdb.printing
@@ -152,6 +153,25 @@ import gdb.events
 def convert_codes(tree_code_dict, cp_tree_code_dict):
     return {int(v):int(cp_tree_code_dict.get("TS_CP_"+k, cp_tree_code_dict["TS_CP_GENERIC"])) for k, v in tree_code_dict.items()}
 
+tree_codes = [
+    'ENUMERAL_TYPE', 'ARRAY_TYPE', 'RECORD_TYPE', 'UNION_TYPE',
+    'QUAL_UNION_TYPE', 'FUNCTION_TYPE', 'METHOD_TYPE',
+    'BOUND_TEMPLATE_TEMPLATE_PARM', 'DECLTYPE_TYPE', 'TYPEOF_TYPE',
+    'TYPENAME_TYPE', 'TRAIT_TYPE', 'DEPENDENT_OPERATOR_TYPE', 'BASES',
+    'TYPE_PACK_EXPANSION',
+
+    'EXPR_PACK_EXPANSION', 'NONTYPE_ARGUMENT_PACK', 'UNARY_LEFT_FOLD_EXPR',
+    'UNARY_RIGHT_FOLD_EXPR', 'BINARY_LEFT_FOLD_EXPR', 'BINARY_RIGHT_FOLD_EXPR',
+    'REQUIRES_EXPR', 'ATOMIC_CONSTR', 'CHECK_CONSTR', 'TEMPLATE_ID_EXPR',
+    'STMT_EXPR', 'MUST_NOT_THROW_EXPR', 'CLEANUP_STMT', 'EH_SPEC_BLOCK', 'HANDLER',
+    'TRY_BLOCK', 'EXPR_STMT', 'IF_STMT', 'RANGE_FOR_STMT', 'USING_STMT',
+    'AGGR_INIT_EXPR', 'VEC_INIT_EXPR', 'CALL_EXPR', 'BIND_EXPR',
+
+    'SSA_NAME', 'TREE_LIST', 'TREE_VEC', 'INTEGER_CST', 'STRING_CST',
+    'TEMPLATE_PARM_INDEX', 'IDENTIFIER_NODE', 'TYPE_DECL', 'CONCEPT_DECL',
+]
+Codes = namedtuple('Codes', tree_codes)
+code: Codes = None
 def init_globals(event):
     # Convert "enum tree_code" (tree.def and tree.h) to a dict:
     global tree_code_dict
@@ -193,165 +213,67 @@ def init_globals(event):
     val_tree_code_name = gdb.parse_and_eval('tree_code_name')
 
     # ...and look up specific values for use later:
-
-    global ENUMERAL_TYPE
-    ENUMERAL_TYPE = tree_code_dict['ENUMERAL_TYPE']
-    global ARRAY_TYPE
-    ARRAY_TYPE = tree_code_dict['ARRAY_TYPE']
-    global RECORD_TYPE
-    RECORD_TYPE = tree_code_dict['RECORD_TYPE']
-    global UNION_TYPE
-    UNION_TYPE = tree_code_dict['UNION_TYPE']
-    global QUAL_UNION_TYPE
-    QUAL_UNION_TYPE = tree_code_dict['QUAL_UNION_TYPE']
-    global FUNCTION_TYPE
-    FUNCTION_TYPE = tree_code_dict['FUNCTION_TYPE']
-    global METHOD_TYPE
-    METHOD_TYPE = tree_code_dict['METHOD_TYPE']
-    global BOUND_TEMPLATE_TEMPLATE_PARM
-    BOUND_TEMPLATE_TEMPLATE_PARM = tree_code_dict['BOUND_TEMPLATE_TEMPLATE_PARM']
-    global DECLTYPE_TYPE
-    DECLTYPE_TYPE = tree_code_dict['DECLTYPE_TYPE']
-    global TYPEOF_TYPE
-    TYPEOF_TYPE = tree_code_dict['TYPEOF_TYPE']
-    global TYPENAME_TYPE
-    TYPENAME_TYPE = tree_code_dict['TYPENAME_TYPE']
-    global TRAIT_TYPE
-    TRAIT_TYPE = tree_code_dict['TRAIT_TYPE']
-    global DEPENDENT_OPERATOR_TYPE
-    DEPENDENT_OPERATOR_TYPE = tree_code_dict['DEPENDENT_OPERATOR_TYPE']
-    global BASES
-    BASES = tree_code_dict['BASES']
-    global TYPE_PACK_EXPANSION
-    TYPE_PACK_EXPANSION = tree_code_dict['TYPE_PACK_EXPANSION']
-
-    global EXPR_PACK_EXPANSION
-    EXPR_PACK_EXPANSION = tree_code_dict['EXPR_PACK_EXPANSION']
-    global NONTYPE_ARGUMENT_PACK
-    NONTYPE_ARGUMENT_PACK = tree_code_dict['NONTYPE_ARGUMENT_PACK']
-    global UNARY_LEFT_FOLD_EXPR
-    UNARY_LEFT_FOLD_EXPR = tree_code_dict['UNARY_LEFT_FOLD_EXPR']
-    global UNARY_RIGHT_FOLD_EXPR
-    UNARY_RIGHT_FOLD_EXPR = tree_code_dict['UNARY_RIGHT_FOLD_EXPR']
-    global BINARY_LEFT_FOLD_EXPR
-    BINARY_LEFT_FOLD_EXPR = tree_code_dict['BINARY_LEFT_FOLD_EXPR']
-    global BINARY_RIGHT_FOLD_EXPR
-    BINARY_RIGHT_FOLD_EXPR = tree_code_dict['BINARY_RIGHT_FOLD_EXPR']
-    global REQUIRES_EXPR
-    REQUIRES_EXPR = tree_code_dict['REQUIRES_EXPR']
-    global ATOMIC_CONSTR
-    ATOMIC_CONSTR = tree_code_dict['ATOMIC_CONSTR']
-    global CHECK_CONSTR
-    CHECK_CONSTR = tree_code_dict['CHECK_CONSTR']
-    global TEMPLATE_ID_EXPR
-    TEMPLATE_ID_EXPR = tree_code_dict['TEMPLATE_ID_EXPR']
-    global STMT_EXPR
-    STMT_EXPR = tree_code_dict['STMT_EXPR']
-    global MUST_NOT_THROW_EXPR
-    MUST_NOT_THROW_EXPR = tree_code_dict['MUST_NOT_THROW_EXPR']
-    global CLEANUP
-    CLEANUP = tree_code_dict['CLEANUP']
-    global EH_SPEC_BLOCK
-    EH_SPEC_BLOCK = tree_code_dict['EH_SPEC_BLOCK']
-    global HANDLER
-    HANDLER = tree_code_dict['HANDLER']
-    global TRY_BLOCK
-    TRY_BLOCK = tree_code_dict['TRY_BLOCK']
-    global EXPR_STMT
-    EXPR_STMT = tree_code_dict['EXPR_STMT']
-    global IF_STMT
-    IF_STMT = tree_code_dict['IF_STMT']
-    global RANGE_FOR_STMT
-    RANGE_FOR_STMT = tree_code_dict['RANGE_FOR_STMT']
-    global USING_STMT
-    USING_STMT = tree_code_dict['USING_STMT']
-    global AGGR_INIT_EXPR
-    AGGR_INIT_EXPR = tree_code_dict['AGGR_INIT_EXPR']
-    global VEC_INIT_EXPR
-    VEC_INIT_EXPR = tree_code_dict['VEC_INIT_EXPR']
-    global CALL_EXPR
-    CALL_EXPR = tree_code_dict['CALL_EXPR']
-    global BIND_EXPR
-    BIND_EXPR = tree_code_dict['BIND_EXPR']
-
-    global SSA_NAME
-    SSA_NAME = tree_code_dict['SSA_NAME']
-    global TREE_LIST
-    TREE_LIST = tree_code_dict['TREE_LIST']
-    global TREE_VEC
-    TREE_VEC = tree_code_dict['TREE_VEC']
-    global CONCEPT_DECL
-    CONCEPT_DECL = tree_code_dict['CONCEPT_DECL']
-    global TEMPLATE_PARM_INDEX
-    TEMPLATE_PARM_INDEX = tree_code_dict['TEMPLATE_PARM_INDEX']
-    global INTEGER_CST
-    INTEGER_CST = tree_code_dict['INTEGER_CST']
-    global STRING_CST
-    STRING_CST = tree_code_dict['STRING_CST']
-    global IDENTIFIER_NODE
-    IDENTIFIER_NODE = tree_code_dict['IDENTIFIER_NODE']
-    global TYPE_DECL
-    TYPE_DECL = tree_code_dict['TYPE_DECL']
-
+    global code
+    code = Codes(*(int(tree_code_dict[arg]) for arg in tree_codes))
     global field_map
     field_map = {
-        int(CONCEPT_DECL) : {
-            'initial' : 'expr'
+        code.CONCEPT_DECL: {
+            'initial': 'expr'
         },
-        int(TYPE_DECL) : {
-            'common' : 'common',
-            'initial' : 'constrained_param_prototype',
-            'size_unit' : 'constrained_parm_concept',
-            'size' : 'constrained_parm_extra_args'
+        code.TYPE_DECL: {
+            'common': 'common',
+            'initial': 'constrained_param_prototype',
+            'size_unit': 'constrained_parm_concept',
+            'size': 'constrained_parm_extra_args'
         }
     }
 
     fold_op = lambda v, t: ('op', val_tree_code_name[int(v['operands'][0]['base']['code'])])
     global exp_op_map
     exp_op_map = {
-        int(BIND_EXPR) : ['vars', 'stmt', 'scope'],
-        int(HANDLER) : ['params', 'body'],
-        int(TRY_BLOCK) : ['try-stmts', 'handlers'],
-        int(TEMPLATE_ID_EXPR) : ['tmpl', 'args'],
-        int(EXPR_PACK_EXPANSION) : ['pattern', 'parameter-packs', 'extra-args'],
-        int(ATOMIC_CONSTR) : ['map'],
-        int(CHECK_CONSTR) : ['concept', 'args'],
-        int(REQUIRES_EXPR) : ['parms', 'reqs', 'extra-args'],
-        int(NONTYPE_ARGUMENT_PACK) : ['args'],
-        int(UNARY_LEFT_FOLD_EXPR) : [fold_op, 'pack', 'init'],
-        int(UNARY_RIGHT_FOLD_EXPR) : [fold_op, 'pack', 'init'],
-        int(BINARY_LEFT_FOLD_EXPR) : [fold_op, 'pack', 'init'],
-        int(BINARY_RIGHT_FOLD_EXPR) : [fold_op, 'pack', 'init'],
-        int(AGGR_INIT_EXPR) : ['fn', 'slot', ''],
-        int(VEC_INIT_EXPR) : ['fn', 'slot', ''],
-        int(CALL_EXPR) : ['', 'fn', 'static-chain'],
-        int(MUST_NOT_THROW_EXPR) : ['cond'],
-        int(EH_SPEC_BLOCK) : ['stmts', 'raises'],
-        int(USING_STMT) : ['namespace'],
-        int(CLEANUP) : ['body', 'expr', 'decl'],
-        int(IF_STMT) : ['cond', 'then', 'else', 'scope'],
-        int(RANGE_FOR_STMT) : ['decl', 'expr', 'body', 'scope', 'unroll', 'init'],
-        int(STMT_EXPR) : ['stmt'],
-        int(EXPR_STMT) : ['expr'],
+        code.BIND_EXPR: ['vars', 'stmt', 'scope'],
+        code.HANDLER: ['params', 'body'],
+        code.TRY_BLOCK: ['try-stmts', 'handlers'],
+        code.TEMPLATE_ID_EXPR: ['tmpl', 'args'],
+        code.EXPR_PACK_EXPANSION: ['pattern', 'parameter-packs', 'extra-args'],
+        code.ATOMIC_CONSTR: ['map'],
+        code.CHECK_CONSTR: ['concept', 'args'],
+        code.REQUIRES_EXPR: ['parms', 'reqs', 'extra-args'],
+        code.NONTYPE_ARGUMENT_PACK: ['args'],
+        code.UNARY_LEFT_FOLD_EXPR: [fold_op, 'pack', 'init'],
+        code.UNARY_RIGHT_FOLD_EXPR: [fold_op, 'pack', 'init'],
+        code.BINARY_LEFT_FOLD_EXPR: [fold_op, 'pack', 'init'],
+        code.BINARY_RIGHT_FOLD_EXPR: [fold_op, 'pack', 'init'],
+        code.AGGR_INIT_EXPR: ['fn', 'slot', ''],
+        code.VEC_INIT_EXPR: ['fn', 'slot', ''],
+        code.CALL_EXPR: ['', 'fn', 'static-chain'],
+        code.MUST_NOT_THROW_EXPR: ['cond'],
+        code.EH_SPEC_BLOCK: ['stmts', 'raises'],
+        code.USING_STMT: ['namespace'],
+        code.CLEANUP_STMT: ['body', 'expr', 'decl'],
+        code.IF_STMT: ['cond', 'then', 'else', 'scope'],
+        code.RANGE_FOR_STMT: ['decl', 'expr', 'body', 'scope', 'unroll', 'init'],
+        code.STMT_EXPR: ['stmt'],
+        code.EXPR_STMT: ['expr'],
 
     }
     global type_non_common_map
     type_non_common_map = {
-        int(ENUMERAL_TYPE) : ['values', '', '', 'template-info'],
-        int(RECORD_TYPE) : ['fields', 'vfield', 'binfo', 'template-info'],
-        int(UNION_TYPE) : ['fields', 'vfield', 'binfo', 'template-info'],
-        int(QUAL_UNION_TYPE) : ['fields', 'vfield', 'binfo', 'template-info'],
-        int(FUNCTION_TYPE) : ['args', '', 'basetype', 'raises'],
-        int(METHOD_TYPE) : ['args', '', 'basetype', 'raises'],
-        int(BOUND_TEMPLATE_TEMPLATE_PARM) : ['index', '', '', 'template-info'],
-        int(DECLTYPE_TYPE) : ['expr', '', '', ''],
-        int(TYPEOF_TYPE) : ['expr', '', '', ''],
-        int(TYPENAME_TYPE) : ['fullname', '', '', ''],
-        int(TRAIT_TYPE) : ['kind', '1', '2', ''],
-        int(DEPENDENT_OPERATOR_TYPE) : ['saved-lookups', '', '', ''],
-        int(BASES) : ['type', '', '', ''],
-        int(TYPE_PACK_EXPANSION) : [
-            lambda v, t:('[pattern]', t['typed']['type']),
+        code.ENUMERAL_TYPE: ['values', '', '', 'template-info'],
+        code.RECORD_TYPE: ['fields', 'vfield', 'binfo', 'template-info'],
+        code.UNION_TYPE: ['fields', 'vfield', 'binfo', 'template-info'],
+        code.QUAL_UNION_TYPE: ['fields', 'vfield', 'binfo', 'template-info'],
+        code.FUNCTION_TYPE: ['args', '', 'basetype', 'raises'],
+        code.METHOD_TYPE: ['args', '', 'basetype', 'raises'],
+        code.BOUND_TEMPLATE_TEMPLATE_PARM: ['index', '', '', 'template-info'],
+        code.DECLTYPE_TYPE: ['expr', '', '', ''],
+        code.TYPEOF_TYPE: ['expr', '', '', ''],
+        code.TYPENAME_TYPE: ['fullname', '', '', ''],
+        code.TRAIT_TYPE: ['kind', '1', '2', ''],
+        code.DEPENDENT_OPERATOR_TYPE: ['saved-lookups', '', '', ''],
+        code.BASES: ['type', '', '', ''],
+        code.TYPE_PACK_EXPANSION: [
+            lambda v, t:('[pattern*]', t['typed']['type']),
             'parameter-packs', 'extra-args', ''],
     }
 
@@ -474,7 +396,7 @@ class TreePrinter:
         for i, field in enumerate(tree_type_node.fields()):
             if 1 if tree_structure[val_TREE_CODE][i] else 0:
                 yield (field.name, curr[field])
-        if self.node.TREE_CODE() == TEMPLATE_PARM_INDEX:
+        if self.node.TREE_CODE() == code.TEMPLATE_PARM_INDEX:
             yield "[tparm_idx]", self.gdbval.cast(template_parm_index_type_node)
 
     def to_string (self):
@@ -511,18 +433,18 @@ class TreePrinter:
             elif intptr(val_tclass) == tcc_type:
                 tree_TYPE_NAME = Tree(self.gdbval['type_common']['name'])
                 if tree_TYPE_NAME.is_nonnull():
-                    if tree_TYPE_NAME.TREE_CODE() == IDENTIFIER_NODE:
+                    if tree_TYPE_NAME.TREE_CODE() == code.IDENTIFIER_NODE:
                         result += ' %s' % tree_TYPE_NAME.IDENTIFIER_POINTER()
-                    elif tree_TYPE_NAME.TREE_CODE() == TYPE_DECL:
+                    elif tree_TYPE_NAME.TREE_CODE() == code.TYPE_DECL:
                         if tree_TYPE_NAME.DECL_NAME().is_nonnull():
                             result += ' %s' % tree_TYPE_NAME.DECL_NAME().IDENTIFIER_POINTER()
-            if self.node.TREE_CODE() == IDENTIFIER_NODE:
+            if self.node.TREE_CODE() == code.IDENTIFIER_NODE:
                 result += ' %s' % self.node.IDENTIFIER_POINTER()
-            elif self.node.TREE_CODE() == SSA_NAME:
+            elif self.node.TREE_CODE() == code.SSA_NAME:
                 result += ' %u' % self.gdbval['base']['u']['version']
-            elif self.node.TREE_CODE() == INTEGER_CST:
+            elif self.node.TREE_CODE() == code.INTEGER_CST:
                 result += ' %s' % TreeIntCstPrinter(self.gdbval['int_cst']).to_string()
-            elif self.node.TREE_CODE() == STRING_CST:
+            elif self.node.TREE_CODE() == code.STRING_CST:
                 result += ' %s' % TreeStringCstPrinter(self.gdbval['string']).to_string()
         # etc
         result += '>'
