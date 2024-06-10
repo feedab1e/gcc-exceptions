@@ -748,7 +748,14 @@ class PassPrinter:
 class VecPrinter:
     #    -ex "up" -ex "p bb->preds"
     def __init__(self, gdbval):
-        self.gdbval = gdbval
+        val = gdbval
+        typ = val.type
+        if typ.code == gdb.TYPE_CODE_PTR:
+            typ = typ.target()
+        else:
+            val = val.address
+        self.gdbval = val
+        self.gdbtyp = typ
 
     def display_hint (self):
         return 'array'
@@ -763,14 +770,8 @@ class VecPrinter:
             return
         m_vecpfx = self.gdbval['m_vecpfx']
         m_num = m_vecpfx['m_num']
-        val = self.gdbval
-        typ = val.type
-        if typ.code == gdb.TYPE_CODE_PTR:
-            typ = typ.target()
-        else:
-            val = val.address
-        typ_T = typ.template_argument(0) # the type T
-        vecdata = (val + 1).cast(typ_T.pointer())
+        typ_T = self.gdbtyp.template_argument(0) # the type T
+        vecdata = (self.gdbval + 1).cast(typ_T.pointer())
         for i in range(m_num):
             yield ('[%d]' % i, vecdata[i])
 
@@ -859,6 +860,12 @@ def build_pretty_printer():
                              'tree', TreePrinter)
     pp.add_printer_for_types(['lang_tree', 'const_lang_tree', 'lang_tree_node *', 'const lang_tree_node *'],
                              'lang_tree', TreeLangPrinter)
+    pp.add_printer_for_types(['tree_string'],
+                             'tree_string', TreeStringCstPrinter)
+    pp.add_printer_for_types(['tree_int_cst'],
+                             'tree_int_cst', TreeIntCstPrinter)
+    pp.add_printer_for_types(['tree_poly_int_cst'],
+                             'tree_poly_int_cst', TreePolyIntCstPrinter)
     pp.add_printer_for_types(['tree_exp'],
                              'tree_exp', TreeExpPrinter)
     pp.add_printer_for_types(['tree_list'],
@@ -904,7 +911,7 @@ def build_pretty_printer():
     pp.add_printer_for_types(['rtx_def *'], 'rtx_def', RtxPrinter)
     pp.add_printer_for_types(['opt_pass *'], 'opt_pass', PassPrinter)
 
-    pp.add_printer_for_regex(r'vec<(\S+), (\S+), (\S+)> \*',
+    pp.add_printer_for_regex(r'vec<.+',
                              'vec',
                              VecPrinter)
 
