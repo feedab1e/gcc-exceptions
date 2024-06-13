@@ -2751,6 +2751,8 @@ make_tree_binfo (unsigned base_binfos MEM_STAT_DECL)
   TREE_SET_CODE (t, TREE_BINFO);
 
   BINFO_BASE_BINFOS (t)->embedded_init (base_binfos);
+  t->binfo.base_count_accel = hash_map<tree, unsigned>::create_ggc();
+  t->binfo.vbase_count_accel = hash_map<tree, unsigned>::create_ggc();
 
   return t;
 }

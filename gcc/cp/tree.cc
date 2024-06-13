@@ -2074,6 +2074,14 @@ copy_binfo (tree binfo, tree type, tree t, tree *igo_prev, int virt)
 {
   tree new_binfo;
 
+  auto gc_copy = [](hash_map<tree, unsigned>* value)
+    {
+      using map = hash_map<tree, unsigned>;
+      auto* memory = ggc_alloc<map> ();
+      return new(memory) map (*value,
+                              true, true, GATHER_STATISTICS);
+    };
+
   if (virt)
     {
       /* See if we've already made this virtual base.  */
@@ -2101,6 +2109,11 @@ copy_binfo (tree binfo, tree type, tree t, tree *igo_prev, int virt)
 
       /* We do not need to copy the accesses, as they are read only.  */
       BINFO_BASE_ACCESSES (new_binfo) = BINFO_BASE_ACCESSES (binfo);
+
+      BINFO_BASECOUNT_ACCEL (new_binfo) =
+        gc_copy (BINFO_BASECOUNT_ACCEL (binfo));
+      BINFO_VBASECOUNT_ACCEL (new_binfo) =
+        gc_copy (BINFO_VBASECOUNT_ACCEL (binfo));
 
       /* Recursively copy base binfos of BINFO.  */
       for (ix = 0; BINFO_BASE_ITERATE (binfo, ix, base_binfo); ix++)

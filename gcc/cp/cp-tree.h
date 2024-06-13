@@ -7222,6 +7222,7 @@ extern void check_handlers			(tree);
 extern tree finish_noexcept_expr		(tree, tsubst_flags_t);
 extern bool expr_noexcept_p			(tree, tsubst_flags_t);
 extern void perform_deferred_noexcept_checks	(void);
+extern bool check_unambiguous_eh_cast           (tree, tree);
 extern bool nothrow_spec_p			(const_tree);
 extern bool type_noexcept_p			(const_tree);
 extern bool type_throw_all_p			(const_tree);

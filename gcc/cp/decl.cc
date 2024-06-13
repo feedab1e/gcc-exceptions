@@ -16696,6 +16696,15 @@ xref_basetypes (tree ref, tree base_list)
   if (ref == error_mark_node)
     return;
 
+  auto accel_append = [](hash_map<tree, unsigned> *accel, tree type)
+    {
+      accel->get_or_insert (type) += 1;
+      auto ptr = BINFO_BASECOUNT_ACCEL (TYPE_BINFO (type));
+      gcc_assert(ptr);
+      for (auto t: *ptr)
+        accel->get_or_insert (t.first) += t.second;
+    };
+
   /* The base of a derived class is private by default, all others are
      public.  */
   default_access = (TREE_CODE (ref) == RECORD_TYPE
@@ -16814,6 +16823,12 @@ xref_basetypes (tree ref, tree base_list)
 	  /* The original basetype could have been a typedef'd type.  */
 	  basetype = BINFO_TYPE (base_binfo);
 
+          if(!via_virtual)
+            {
+              accel_append(BINFO_BASECOUNT_ACCEL(binfo), basetype);
+              accel_append(BINFO_VBASECOUNT_ACCEL(binfo), basetype);
+            }
+
 	  /* Inherit flags from the base.  */
 	  TYPE_HAS_NEW_OPERATOR (ref)
 	    |= TYPE_HAS_NEW_OPERATOR (basetype);
@@ -16879,6 +16894,12 @@ xref_basetypes (tree ref, tree base_list)
   for (i = 0; BINFO_BASE_ITERATE (binfo, i, base_binfo); i++)
     TYPE_MARKED_P (BINFO_TYPE (base_binfo)) = 0;
   TYPE_MARKED_P (ref) = 0;
+
+  /* Fill vbasecount structure */
+  tree *elt;
+  FOR_EACH_VEC_SAFE_ELT(CLASSTYPE_VBASECLASSES(ref), i, elt)
+    if (CLASS_TYPE_P(BINFO_TYPE(*elt)) && !dependent_scope_p(BINFO_TYPE(*elt)))
+      accel_append(BINFO_VBASECOUNT_ACCEL(binfo), BINFO_TYPE(*elt));
 
   /* Now see if we have a repeated base type.  */
   if (!CLASSTYPE_REPEATED_BASE_P (ref))

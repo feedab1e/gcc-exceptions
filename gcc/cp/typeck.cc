@@ -1173,7 +1173,11 @@ comp_except_types (tree a, tree b, bool exact)
 	return false;
 
       if (publicly_uniquely_derived_p (a, b))
-	return true;
+        {
+          if (!flag_static_exceptions)
+            return true;
+          return check_unambiguous_eh_cast(a, b);
+        }
     }
   return false;
 }

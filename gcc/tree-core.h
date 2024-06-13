@@ -1786,6 +1786,9 @@ struct GTY (()) tree_binfo {
   tree vtt_subvtt;
   tree vtt_vptr;
 
+  hash_map<tree, unsigned> *base_count_accel;
+  hash_map<tree, unsigned> *vbase_count_accel;
+
   vec<tree, va_gc> base_binfos;
 };
 

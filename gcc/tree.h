@@ -2661,6 +2661,10 @@ extern tree vector_element_bits_tree (const_tree);
    the binfo of the most derived type.  */
 #define BINFO_INHERITANCE_CHAIN(NODE) \
 	(TREE_BINFO_CHECK (NODE)->binfo.inheritance)
+#define BINFO_BASECOUNT_ACCEL(NODE) \
+(TREE_BINFO_CHECK (NODE)->binfo.base_count_accel)
+#define BINFO_VBASECOUNT_ACCEL(NODE) \
+(TREE_BINFO_CHECK (NODE)->binfo.vbase_count_accel)
 
 
 /* Define fields and accessors for nodes representing declared names.  */

@@ -41,8 +41,8 @@ static tree do_allocate_exception (tree);
 static tree wrap_cleanups_r (tree *, int *, void *);
 static bool is_admissible_throw_operand_or_catch_parameter (tree, bool,
 							    tsubst_flags_t);
-static bool
-can_convert_eh (tree to, tree from);
+static bool can_convert_eh (tree to, tree from, bool = true);
+
 static int
 cmp_eh_types (tree a, tree b)
 {
@@ -188,12 +188,12 @@ void subtract_exception(tree& spec, tree exception)
       if(exception) return;
       else goto set_noexcept;
     }
-  for(; spec && can_convert_eh(exception, TREE_VALUE(spec)); spec = TREE_CHAIN(spec));
+  for(; spec && can_convert_eh(exception, TREE_VALUE(spec), false); spec = TREE_CHAIN(spec));
   if (!spec)
     goto set_noexcept;
   for (tree it = spec; TREE_CHAIN(it);)
     {
-      if(can_convert_eh(exception, TREE_VALUE(TREE_CHAIN(it))))
+      if(can_convert_eh(exception, TREE_VALUE(TREE_CHAIN(it)), false))
         TREE_CHAIN(it) = TREE_CHAIN(TREE_CHAIN(it));
       else
         it = TREE_CHAIN(it);
@@ -202,6 +202,8 @@ void subtract_exception(tree& spec, tree exception)
   set_noexcept:
       spec = noexcept_true_spec;
 }
+
+bool comp_except_types (tree, tree, bool);
 
 bool check_agains_spec (tree spec, tree check, bool issue_error)
 {
@@ -225,7 +227,7 @@ bool check_agains_spec (tree spec, tree check, bool issue_error)
     {
       bool accept_type = false;
       for (tree new_check = check; new_check; new_check = TREE_CHAIN(new_check))
-        if (can_convert_eh(TREE_VALUE(new_check), TREE_VALUE(spec)))
+        if (can_convert_eh(TREE_VALUE(new_check), TREE_VALUE(spec)), true)
           {
             accept_type = true;
             break;
@@ -611,6 +613,7 @@ expand_start_catch_block (tree decl)
   push_exception_context();
   auto ctx = get_exception_context();
   ctx->in_flight = type;
+  ctx->saved = ctx->prev->saved;
   if(!type)
     ctx->prev->saved = empty_except_spec;
   else
@@ -702,6 +705,7 @@ expand_end_catch_block (void)
       suppress_warning (rethrow);
       finish_expr_stmt (rethrow);
     }
+  get_exception_context()->saved = noexcept_true_spec;
   pop_exception_context(false);
 }
 
@@ -1045,11 +1049,37 @@ build_throw (location_t loc, tree exp, tsubst_flags_t complain)
           auto ctx = get_exception_context();
           if(ctx->in_flight)
             {
+              bool typed_throw = true;
+              bool noexcept_throw = false;
+              if(is_noexcept_spec(ctx->saved))
+                noexcept_throw = true;
+              if(!is_type_list_spec(ctx->saved))
+                typed_throw = false;
+              else
+                {
+                  bool matches = false;
+                  bool misses = false;
+                  for (tree p = ctx->saved; p; p = TREE_CHAIN(p))
+                    if (publicly_uniquely_derived_p(ctx->in_flight, TREE_VALUE(p)))
+                      {
+                        matches = true;
+                        if(!check_unambiguous_eh_cast(ctx->in_flight, TREE_VALUE(p)))
+                          misses = true;
+                      }
+                  if (matches && misses)
+                    typed_throw = false;
+                  else if (!matches)
+                    noexcept_throw = true;
+                }
               tree to_merge[] =
                 {
                 ctx->current,
-                tree_cons(NULL_TREE, ctx->in_flight, NULL_TREE)
-              };
+                noexcept_throw
+                  ? noexcept_true_spec
+                  : typed_throw
+                  ? tree_cons(NULL_TREE, ctx->in_flight, NULL_TREE)
+                  : noexcept_false_spec
+                };
               ctx->current = merge_exception_specs(to_merge,
                                                    sizeof to_merge
                                                    / sizeof to_merge[0]);
@@ -1196,11 +1226,25 @@ nothrow_libfn_p (const_tree fn)
     }
 }
 
+bool check_unambiguous_eh_cast(tree to, tree from) {
+  auto &to_binfo_accel = *BINFO_VBASECOUNT_ACCEL(TYPE_BINFO(to));
+  auto &from_binfo_accel = *BINFO_VBASECOUNT_ACCEL(TYPE_BINFO(from));
+  for (auto val: to_binfo_accel)
+    {
+      unsigned *count = from_binfo_accel.get(val.first);
+      unsigned count2 = count ? *count : 0;
+      gcc_assert(count2 >= val.second);
+      if (count2 != val.second)
+        return false;
+    }
+  return true;
+}
+
 /* Returns nonzero if an exception of type FROM will be caught by a
    handler for type TO, as per [except.handle].  */
 
 static bool
-can_convert_eh (tree to, tree from)
+can_convert_eh (tree to, tree from, bool strict)
 {
   to = non_reference (to);
   from = non_reference (from);
@@ -1224,7 +1268,11 @@ can_convert_eh (tree to, tree from)
 
   if (CLASS_TYPE_P (to) && CLASS_TYPE_P (from)
       && publicly_uniquely_derived_p (to, from))
-    return true;
+    {
+      if (!flag_static_exceptions || !strict)
+        return true;
+      return check_unambiguous_eh_cast(to, from);
+    }
 
   return false;
 }
