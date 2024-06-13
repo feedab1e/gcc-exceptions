@@ -21,7 +21,7 @@ void helper_throws_float() throw(float) {}
 int test_empty_spec_throws() throw() {
   helper_throws_int();
   return 1;
-} /* { dg-error "Invalid eh spec !!!" } */
+} /* { dg-error "Invalid eh spec" } */
 
 
 int test_valid_throws_int() throw(int) {
@@ -31,7 +31,7 @@ int test_valid_throws_int() throw(int) {
 int test_mismatched_type() throw(float) {
   test_valid_throws_int();
   return 1;
-} /* { dg-error "Invalid eh spec !!!" } */
+} /* { dg-error "Invalid eh spec" } */
 
 int test_deduce() throw(auto) {
   throw 1.;
@@ -44,7 +44,7 @@ int test_check_deduce() throw(double) {
 int test_check_deduce_not_noexcept() throw() {
   test_deduce();
   return 1;
-} /* { dg-error "Invalid eh spec !!!" } */
+} /* { dg-error "Invalid eh spec" } */
 
 void check_try_valid() noexcept {try {
     helper_throws_float();
@@ -56,7 +56,7 @@ void check_try_invalid() throw() {try {
     helper_throws_float();
 }
   catch(int) {}
-}/* { dg-error "Invalid eh spec !!!" } */
+}/* { dg-error "Invalid eh spec" } */
 void check_try_all() throw() {try {
     helper_throws_float();
   }
