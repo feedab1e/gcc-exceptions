@@ -18968,6 +18968,14 @@ tsubst_stmt (tree t, tree args, tsubst_flags_t complain, tree in_decl)
               {
                 local_specialization_stack lss{lss_blank};
                 TMPL_ARG(new_args, depth + 1, 0) = TREE_VALUE(curr);
+                if (tree constraint = TREE_TYPE (HANDLER_BODY (t)))
+                  {
+                    tree satisfy = evaluate_concept_check (
+                      tsubst_constraint (constraint, new_args,
+                        complain, in_decl));
+                    if (satisfy == boolean_false_node)
+                      continue;
+                  }
                 tree idecl = tsubst(decl, new_args, complain, in_decl);
                 /* Prevent instantiate_decl from trying to instantiate
                    this variable.  We've already done all that needs to be

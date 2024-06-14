@@ -29267,14 +29267,18 @@ cp_parser_handler (cp_parser* parser)
   }
   if (parser->fully_implicit_function_template_p)
     {
+      TREE_TYPE (HANDLER_BODY (handler)) = TEMPLATE_PARMS_CONSTRAINTS (current_template_parms);
       finish_fully_implicit_template(parser, NULL_TREE);
       TEMPLATE_HANDLER_P(handler) = 1;
-      // get rid of the current handler since it's templated and
-      // we are going to spawn non-templated versions of it
-      auto templated_handler = tsi_last (stmt_list_stack->last ());
-      tsi_delink (&templated_handler);
-      local_specialization_stack x;
-      tsubst_stmt (handler, NULL_TREE, tf_warning_or_error, NULL_TREE);
+      if (!processing_template_decl)
+        {
+          // get rid of the current handler since it's templated and
+          // we are going to spawn non-templated versions of it
+          auto templated_handler = tsi_last (stmt_list_stack->last ());
+          tsi_delink (&templated_handler);
+          local_specialization_stack x;
+          tsubst_stmt (handler, NULL_TREE, tf_warning_or_error, NULL_TREE);
+        }
     }
 }
 
