@@ -227,7 +227,7 @@ bool check_agains_spec (tree spec, tree check, bool issue_error)
     {
       bool accept_type = false;
       for (tree new_check = check; new_check; new_check = TREE_CHAIN(new_check))
-        if (can_convert_eh(TREE_VALUE(new_check), TREE_VALUE(spec)), true)
+        if (can_convert_eh(TREE_VALUE(new_check), TREE_VALUE(spec), true))
           {
             accept_type = true;
             break;
