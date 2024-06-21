@@ -163,12 +163,23 @@ tree_codes = [
     'EXPR_PACK_EXPANSION', 'NONTYPE_ARGUMENT_PACK', 'UNARY_LEFT_FOLD_EXPR',
     'UNARY_RIGHT_FOLD_EXPR', 'BINARY_LEFT_FOLD_EXPR', 'BINARY_RIGHT_FOLD_EXPR',
     'REQUIRES_EXPR', 'ATOMIC_CONSTR', 'CHECK_CONSTR', 'TEMPLATE_ID_EXPR',
-    'STMT_EXPR', 'MUST_NOT_THROW_EXPR', 'CLEANUP_STMT', 'EH_SPEC_BLOCK', 'HANDLER',
-    'TRY_BLOCK', 'EXPR_STMT', 'IF_STMT', 'RANGE_FOR_STMT', 'USING_STMT',
-    'AGGR_INIT_EXPR', 'VEC_INIT_EXPR', 'CALL_EXPR', 'BIND_EXPR',
+    'STMT_EXPR', 'MUST_NOT_THROW_EXPR', 'CLEANUP_STMT', 'EH_SPEC_BLOCK',
+    'HANDLER', 'TRY_BLOCK', 'EXPR_STMT', 'IF_STMT', 'RANGE_FOR_STMT',
+    'USING_STMT', 'AGGR_INIT_EXPR', 'VEC_INIT_EXPR', 'INIT_EXPR', 'TARGET_EXPR',
+    'CALL_EXPR', 'BIND_EXPR',
 
     'SSA_NAME', 'TREE_LIST', 'TREE_VEC', 'INTEGER_CST', 'STRING_CST',
-    'TEMPLATE_PARM_INDEX', 'IDENTIFIER_NODE', 'TYPE_DECL', 'CONCEPT_DECL',
+    'VECTOR_CST', 'TEMPLATE_PARM_INDEX', 'IDENTIFIER_NODE', 'TYPE_DECL',
+    'CONCEPT_DECL', 'MEM_REF', 'TARGET_MEM_REF', 'OMP_ATOMIC',
+    'OMP_ATOMIC_CAPTURE_NEW', 'POLYNOMIAL_CHREC', 'TREE_BINFO', 'VAR_DECL',
+    'PARM_DECL', 'RESULT_DECL', 'FUNCTION_DECL', 'LABEL_DECL', 'CONSTRUCTOR',
+    'CASE_LABEL_EXPR', 'PREDICT_EXPR', 'ADDR_EXPR', 'WITH_CLEANUP_EXPR',
+    'TRY_CATCH_EXPR', 'ASM_EXPR', 'POINTER_TYPE', 'REFERENCE_TYPE',
+    'TRANSACTION_EXPR', 'REAL_CST', 'COMPLEX_CST', 'SAVE_EXPR',
+    'NON_LVALUE_EXPR', 'VIEW_CONVERT_EXPR', 'BLOCK', 'INDIRECT_REF',
+    'ARRAY_REF', 'ARRAY_RANGE_REF', 'VECTOR_TYPE', 'BIT_FIELD_REF',
+
+    'OMP_CLAUSE', 'OMP_SECTION', 'OMP_PARALLEL',
 ]
 Codes = namedtuple('Codes', tree_codes)
 code: Codes = None
@@ -289,6 +300,10 @@ def init_globals(event):
     tcc_type = tree_code_class_dict['tcc_type']
     global tcc_declaration
     tcc_declaration = tree_code_class_dict['tcc_declaration']
+    global tcc_expression
+    tcc_expression = tree_code_class_dict['tcc_expression']
+    global tcc_constant
+    tcc_constant = tree_code_class_dict['tcc_constant']
 
     global cp_global_trees
     cp_global_trees = gdb.parse_and_eval('cp_global_trees')
@@ -460,6 +475,217 @@ class TreeLangPrinter(TreePrinter):
         yield structure_inverse[code], self.newgdbval[structure_inverse[code]]
     def num_children(self):
         return 1
+
+class TreeBasePrinter:
+    def __init__ (self, gdbval):
+        self.gdbval = gdbval
+    def children(self):
+        structure_map = {
+            'addressable_flag': [('addressable', [tcc_type])],
+            'private_flag': [('private', [tcc_declaration])],
+            'protected_flag': [('protected', [tcc_declaration])],
+            'side_effects_flag': [
+                ('side_effects', [
+                    tcc_expression,
+                    tcc_declaration,
+                    tcc_constant,
+                ]),
+            ],
+            'volatile_flag': [
+                ('this_volatile', [tcc_expression, tcc_declaration]),
+                ('volatile', [tcc_type]),
+            ],
+            'readonly_flag': [
+                ('readonly', [tcc_expression, tcc_declaration]),
+                ('const', [tcc_type]),
+            ],
+            'constant_flag': [
+                ('constant', [tcc_expression, tcc_declaration, tcc_constant]),
+                ('sizes_gimplified', [tcc_type]),
+            ],
+            'unsigned_flag': [
+                ('unsigned', [tcc_type, tcc_declaration]),
+            ],
+            'used_flag': [
+                ('used', [tcc_expression, tcc_declaration]),
+            ],
+            'deprecated_flag': [('deprecated', [tcc_declaration, tcc_type])],
+            'unavailable_flag': [('unavailable', [tcc_declaration, tcc_type])],
+            'visited': [],
+            'saturating_flag': [('saturating', [tcc_type])],
+            'nowarning_flag': [
+                ('no_warning', [tcc_expression, tcc_declaration]),
+                ('artificial', [tcc_type]),
+            ],
+        }
+        code_map = {
+            'addressable_flag': [
+                ('addressable', [
+                    code.VAR_DECL, code.PARM_DECL, code.RESULT_DECL,
+                    code.FUNCTION_DECL, code.LABEL_DECL, code.SSA_NAME,
+                    code.CONSTRUCTOR, code.IDENTIFIER_NODE, code.STMT_EXPR
+                ]),
+                ('call_expr_tailcall', [code.CALL_EXPR]),
+                ('case_low_seen', [code.CASE_LABEL_EXPR]),
+                ('predict_expr_outcome', [code.PREDICT_EXPR]),
+                ('omp_clause_map_decl_make_addressable', [code.OMP_CLAUSE]),
+            ],
+            'static_flag': [
+                ('tstatic', [
+                    code.VAR_DECL, code.FUNCTION_DECL, code.CONSTRUCTOR
+                ]),
+                ('no_trampoline', [code.ADDR_EXPR]),
+                ('virtual_p', [code.TREE_BINFO]),
+                ('symbol_referenced', [code.IDENTIFIER_NODE]),
+                ('cleanup_eh_only', [
+                    code.TARGET_EXPR, code.WITH_CLEANUP_EXPR
+                ]),
+                ('try_catch_is_cleanup', [code.TRY_CATCH_EXPR]),
+                ('asm_input_p', [code.ASM_EXPR]),
+                ('type_ref_can_alias_all', [
+                    code.POINTER_TYPE, code.REFERENCE_TYPE
+                ]),
+                ('case_high_seen', [code.CASE_LABEL_EXPR]),
+                ('enum_is_scoped', [code.ENUMERAL_TYPE]),
+                ('transaction_expr_outer', [code.TRANSACTION_EXPR]),
+                ('must_tail_call', [code.CALL_EXPR]),
+            ],
+            'public_flag': [
+                ('overflow', [
+                    code.INTEGER_CST, code.REAL_CST, code.COMPLEX_CST,
+                    code.VECTOR_CST
+                ]),
+                ('public', [
+                    code.VAR_DECL, code.FUNCTION_DECL, code.IDENTIFIER_NODE
+                ]),
+                ('constructor_no_clearing', [code.CONSTRUCTOR]),
+                ('asm_volatile_p', [code.ASM_EXPR]),
+                ('call_expr_va_arg_pack', [code.CALL_EXPR]),
+                ('save_expr_resolved_p', [code.SAVE_EXPR]),
+                ('omp_clause_data', [
+                    code.OMP_CLAUSE
+                ]),
+                ('transaction_expr_relaxed', [code.TRANSACTION_EXPR]),
+                ('fallthrough_label_p', [code.LABEL_DECL]),
+                ('ssa_name_is_virtual_operand', [code.SSA_NAME]),
+                ('expr_location_wrapper_p', [
+                    code.NON_LVALUE_EXPR, code.VIEW_CONVERT_EXPR
+                ]),
+            ],
+            'private_flag': [
+                ('call_expr_return_slot_opt', [code.CALL_EXPR]),
+                ('omp_section_last', [code.OMP_SECTION]),
+                ('omp_parallel_combined', [code.OMP_PARALLEL]),
+                ('omp_clause_private', [code.OMP_CLAUSE]),
+                ('type_ref_is_rvalue', [code.REFERENCE_TYPE]),
+                ('enum_is_opaque', [code.ENUMERAL_TYPE]),
+            ],
+            'protected_flag': [
+                ('tree_protected', [code.BLOCK]),
+                ('call_from_new_or_delete_p', [code.CALL_EXPR]),
+                ('omp_clause_linear_variable_stride', [code.OMP_CLAUSE]),
+                ('asm_inline_p', [code.ASM_EXPR]),
+            ],
+            'side_effects_flag': [
+                ('forced_label', [code.LABEL_DECL]),
+            ],
+            'readonly_flag': [
+                ('omp_clause_readonly', [code.OMP_CLAUSE]),
+            ],
+            'asm_written_flag': [
+                ('tree_asm_written', [
+                    code.VAR_DECL, code.FUNCTION_DECL, code.TYPE_DECL,
+                    code.RECORD_TYPE, code.UNION_TYPE, code.QUAL_UNION_TYPE,
+                    code.BLOCK, code.STRING_CST
+                ]),
+                ('ssa_name_occurs_in_abnormal_phi', [code.SSA_NAME]),
+            ],
+            'used_flag': [
+                ('tree_used', [code.IDENTIFIER_NODE]),
+            ],
+            'nothrow_flag': [
+                ('nothrow', [
+                    code.CALL_EXPR,
+                    code.FUNCTION_DECL
+                ]),
+                ('this_notrap', [
+                    code.INDIRECT_REF, code.MEM_REF, code.TARGET_MEM_REF,
+                    code.ARRAY_REF, code.ARRAY_RANGE_REF
+                ]),
+                ('ssa_name_in_free_list', [code.SSA_NAME]),
+                ('decl_nonaliased', [code.VAR_DECL]),
+                ('chrec_nowrap', [code.POLYNOMIAL_CHREC]),
+            ],
+            'deprecated_flag': [
+                ('identifier_transparent_alias', [
+                    code.IDENTIFIER_NODE
+                ]),
+                ('ssa_name_points_to_readonly_memory', [
+                    code.SSA_NAME
+                ]),],
+            'saturating_flag': [
+                ('reverse_storage_order', [
+                    code.RECORD_TYPE, code.UNION_TYPE, code.QUAL_UNION_TYPE,
+                    code.ARRAY_TYPE
+                ]),
+                ('var_decl_is_virtual_operand', [code.VAR_DECL]),
+            ],
+            'default_def_flag': [
+                ('final_p', [
+                    code.RECORD_TYPE, code.UNION_TYPE, code.QUAL_UNION_TYPE
+                ]),
+                ('vector_opaque', [code.VECTOR_TYPE]),
+                ('ssa_name_is_default_def', [code.SSA_NAME]),
+                ('decl_nonlocal_frame', [code.VAR_DECL]),
+                ('reverse_storage_order', [
+                    code.BIT_FIELD_REF, code.MEM_REF
+                ]),
+                ('func_addr_by_descriptor', [code.ADDR_EXPR]),
+                ('call_expr_by_descriptor', [code.CALL_EXPR]),
+            ],
+        }
+        def lookup_structure(kind, name):
+            r = structure_map.get(name, None)
+            if not r:
+                return
+            for k, v in r:
+                if kind in v:
+                    return k
+            return
+        def lookup_code(code, name):
+            r = structure_map.get(name, None)
+            if not r:
+                return
+            for k, v in r:
+                if code in v:
+                    return k
+            return
+        val = self.gdbval
+        u = val['u']
+        c = int(val['code'])
+        for field in val.type.fields():
+            print(field.name)
+            r = lookup_code(c, field.name) or lookup_structure(val_tree_code_type[c], field.name)
+            if r:
+                yield r, val[field]
+        if c == code.INTEGER_CST:
+            yield 'int_length', u['int_length']
+        elif c == code.TREE_VEC:
+            yield 'vec_length', u['length']
+        elif c == code.VECTOR_CST:
+            yield 'vector_cst', u['vector_cst']
+        elif c == code.SSA_NAME:
+            yield 'version', u['version']
+        elif c == code.MEM_REF or c == code.TARGET_MEM_REF:
+            yield 'dependence_info', u['dependence_info']
+        elif c == code.CALL_EXPR:
+            yield 'ifn', u['ifn']
+        elif c >= code.OMP_ATOMIC and c <= code.OMP_ATOMIC_CAPTURE_NEW:
+            yield 'omp_atomic_memory_order', u['omp_atomic_memory_order']
+        elif c == code.POLYNOMIAL_CHREC:
+            yield 'chrec_var', u['chrec_var']
+        else:
+            yield 'bits', u['bits']
 
 class TreeIntCstPrinter:
     def __init__ (self, gdbval):
@@ -927,6 +1153,8 @@ def build_pretty_printer():
                              'tree', TreePrinter)
     pp.add_printer_for_types(['lang_tree', 'const_lang_tree', 'lang_tree_node *', 'const lang_tree_node *'],
                              'lang_tree', TreeLangPrinter)
+    pp.add_printer_for_types(['tree_base'],
+                             'tree_base', TreeBasePrinter)
     pp.add_printer_for_types(['tree_string'],
                              'tree_string', TreeStringCstPrinter)
     pp.add_printer_for_types(['tree_int_cst'],
