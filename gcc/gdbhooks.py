@@ -255,7 +255,8 @@ def init_globals(event):
         code.RANGE_FOR_STMT: ['decl', 'expr', 'body', 'scope', 'unroll', 'init'],
         code.STMT_EXPR: ['stmt'],
         code.EXPR_STMT: ['expr'],
-
+        code.INIT_EXPR: ['target', 'initializer'],
+        code.TARGET_EXPR: ['target', 'initializer', 'cleanup', 'saved-initializer'],
     }
     global type_non_common_map
     type_non_common_map = {
