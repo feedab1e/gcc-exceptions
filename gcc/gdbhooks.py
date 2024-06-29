@@ -144,12 +144,17 @@ import re
 import sys
 import tempfile
 from collections import namedtuple
+from mnemonic import Mnemonic
+import re
 
 import gdb
 import gdb.printing
 import gdb.types
 import gdb.events
 
+m = Mnemonic('english')
+def alias(x):
+    return re.compile(r'\w+ \w+').match(m.to_mnemonic(x.to_bytes(16, byteorder='little')))[0]
 def convert_codes(tree_code_dict, cp_tree_code_dict):
     return {int(v):int(cp_tree_code_dict.get("TS_CP_"+k, cp_tree_code_dict["TS_CP_GENERIC"])) for k, v in tree_code_dict.items()}
 
@@ -166,7 +171,7 @@ tree_codes = [
     'STMT_EXPR', 'MUST_NOT_THROW_EXPR', 'CLEANUP_STMT', 'EH_SPEC_BLOCK',
     'HANDLER', 'TRY_BLOCK', 'EXPR_STMT', 'IF_STMT', 'RANGE_FOR_STMT',
     'USING_STMT', 'AGGR_INIT_EXPR', 'VEC_INIT_EXPR', 'INIT_EXPR', 'TARGET_EXPR',
-    'CALL_EXPR', 'BIND_EXPR',
+    'CALL_EXPR', 'BIND_EXPR', 'COMPOUND_EXPR',
 
     'SSA_NAME', 'TREE_LIST', 'TREE_VEC', 'INTEGER_CST', 'STRING_CST',
     'VECTOR_CST', 'TEMPLATE_PARM_INDEX', 'IDENTIFIER_NODE', 'TYPE_DECL',
@@ -268,6 +273,11 @@ def init_globals(event):
         code.EXPR_STMT: ['expr'],
         code.INIT_EXPR: ['target', 'initializer'],
         code.TARGET_EXPR: ['target', 'initializer', 'cleanup', 'saved-initializer'],
+        code.COMPOUND_EXPR: ['ignored', 'result'],
+    }
+    global vl_exp_count_map
+    vl_exp_count_map = {
+        code.CALL_EXPR: lambda v: v['operands'][0],
     }
     global type_non_common_map
     type_non_common_map = {
@@ -431,9 +441,12 @@ class TreePrinter:
         val_code_name = val_tree_code_name[intptr(val_TREE_CODE)]
 
         try:
-            result = '<%s 0x%x' % (val_code_name.string(), intptr(self.gdbval))
+            result = ('<%s "%s"'
+                      % (val_code_name.string(),
+                         alias(intptr(self.gdbval))))
         except:
-            return '<tree 0x%x>' % intptr(self.gdbval)
+            return ('<tree 0x%x>'
+                    % (intptr(self.gdbval)))
 
         for i in range(cp_global_tree_size):
             if cp_global_trees[i] == self.gdbval:
@@ -531,7 +544,7 @@ class TreeBasePrinter:
                 ('omp_clause_map_decl_make_addressable', [code.OMP_CLAUSE]),
             ],
             'static_flag': [
-                ('tstatic', [
+                ('static', [
                     code.VAR_DECL, code.FUNCTION_DECL, code.CONSTRUCTOR
                 ]),
                 ('no_trampoline', [code.ADDR_EXPR]),
@@ -653,7 +666,7 @@ class TreeBasePrinter:
                     return k
             return
         def lookup_code(code, name):
-            r = structure_map.get(name, None)
+            r = code_map.get(name, None)
             if not r:
                 return
             for k, v in r:
@@ -664,7 +677,6 @@ class TreeBasePrinter:
         u = val['u']
         c = int(val['code'])
         for field in val.type.fields():
-            print(field.name)
             r = lookup_code(c, field.name) or lookup_structure(val_tree_code_type[c], field.name)
             if r:
                 yield r, val[field]
@@ -758,25 +770,28 @@ class TreeExpPrinter:
         self.treeval = gdbval.address.cast(tree_type_node.pointer())
 
     def num_children(self):
-        return tree_operand_length(self.treeval)
+        return (tree_operand_length(self.treeval))
 
     def children (self):
         chld = self.num_children()
+        print(f'chld:{chld}')
+        map = exp_op_map.get(int(self.treeval['typed']['base']['code']), None)
         if chld == 0:
             return
         curr = self.gdbval
-        map = exp_op_map.get(int(self.treeval['typed']['base']['code']), None)
+        print(f'chld:{chld}')
         for i in range(chld):
             elem = None
             if map:
-                elem = map[i]
-                if not elem:
+                elem = map[i] if len(map) > i else None
+                if elem == '':
+                    continue
+                if elem is None:
                     elem = i - len(map)
                 elif type(elem) is not str:
                     yield elem(self.gdbval, self.treeval)
                     continue
-
-            yield f'[{elem or i}]', curr['operands'][i]
+            yield f'[{elem if elem is not None else i}]', curr['operands'][i]
 
 class TreeTypeNonCommonPrinter:
     "Prints a tree_exp part of tree"
@@ -788,7 +803,6 @@ class TreeTypeNonCommonPrinter:
     def children (self):
         curr = self.gdbval
         typ = self.gdbval.type
-        print('HERE')
         map = type_non_common_map.get(int(self.treeval['typed']['base']['code']), None)
         head_override = 1
         for i, field in enumerate(typ.fields()):
