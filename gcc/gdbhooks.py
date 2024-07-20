@@ -791,7 +791,7 @@ class TreePolyIntCstPrinter:
         plus_sign = ''
         for i in range(NUM_POLY_INT_COEFFS):
             res += plus_sign
-            res += TreeIntCstPrinter(self.gdbval['val'][i]).to_string()
+            res += TreeIntCstPrinter(self.gdbval['coeffs'][i]).to_string()
             if(plus_sign == '+'):
                 res += f'x{str(i).translate(superscript)}'
             plus_sign = '+'
