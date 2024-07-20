@@ -143,6 +143,7 @@ import os.path
 import re
 import sys
 import tempfile
+import typing
 from collections import namedtuple
 from mnemonic import Mnemonic
 import re
@@ -188,7 +189,21 @@ tree_codes = [
 ]
 Codes = namedtuple('Codes', tree_codes)
 code: Codes = None
+
+descriptor_fields = ['is_empty', 'is_deleted', 'hash']
+Descriptor = namedtuple('Descriptor', descriptor_fields)
+
+descriptor_map: typing.Dict[str, Descriptor] = {}
+
+def get_descriptor(type: gdb.Type) -> Descriptor:
+    if type.name not in descriptor_map:
+        lookup = (lambda field: gdb.parse_and_eval(type.name + '::' + field))
+        descriptor_map[type.name] = Descriptor(*map(lookup, descriptor_fields))
+    return descriptor_map[type.name]
+
 def init_globals(event):
+    global descriptor_map
+    descriptor_map = {}
     # Convert "enum tree_code" (tree.def and tree.h) to a dict:
     global tree_code_dict
     tree_code_dict = gdb.types.make_enum_dict(gdb.lookup_type('enum tree_code'))
@@ -340,6 +355,50 @@ gdb.events.new_thread.connect(init_globals)
 def intptr(gdbval):
     return long(gdbval) if sys.version_info.major == 2 else int(gdbval)
 
+class HashTable:
+    def __init__(self, gdbval):
+        self.gdbval = gdbval
+
+    def iter(self):
+        class HashTableIterator:
+            def __init__(self, first, size, ty):
+                self.first = first
+                self.size = size
+                self.desc = get_descriptor(ty)
+
+            def __iter__(self):
+                return self
+            def __next__(self):
+                while self.size > 0:
+                    x = self.first.dereference()
+                    self.first += 1
+                    print(self.size)
+                    self.size -= 1
+                    if not self.desc.is_empty(x) and not self.desc.is_deleted(x):
+                        return x
+                raise StopIteration
+        return HashTableIterator(self.gdbval['m_entries'], int(self.gdbval['m_size']), self.gdbval.type.template_argument(0))
+
+
+class HashTablePrinter:
+    def __init__(self, gdbval):
+        self.val = HashTable(gdbval)
+    def children(self):
+        print ('HERE')
+        yield from ((str(k), v) for k, v in enumerate(self.val.iter()))
+
+class HashMapPrinter:
+    def __init__(self, gdbval):
+        self.val = HashTable(gdbval['m_table'])
+
+    def display_hint(self):
+        return 'map'
+    def children(self):
+        print ('HERE')
+        for i, x in enumerate(self.val.iter()):
+            yield f'{i}.key', x['m_key']
+            yield f'{i}.val', x['m_value']
+
 class Tree:
     """
     Wrapper around a gdb.Value for a tree, with various methods
@@ -385,12 +444,14 @@ class TreePrinter:
     "Prints a tree"
 
     def __init__ (self, gdbval, frombase = False):
+        if gdbval.type.code != gdb.TYPE_CODE_PTR:
+            gdbval = gdbval.address
         self.gdbval = gdbval
+        print(gdbval.type)
         self.node = Tree(gdbval)
         self.is_lang = False
         if not frombase and self.node.is_nonnull() and cp_code_structure.get(int(self.node.TREE_CODE()), structure_generic) != structure_generic:
             self.is_lang = True
-            print ("THIS RUNS")
             self.lang = gdb.default_visualizer(self.gdbval.cast(lang_tree_type_node.pointer()))
 
     def num_children(self):
@@ -1126,8 +1187,8 @@ class GdbSubprinterTypeList(GdbSubprinter):
         super(GdbSubprinterTypeList, self).__init__(name, class_)
         self.str_types = frozenset(str_types)
 
-    def handles_type(self, str_type):
-        return str_type in self.str_types
+    def handles_type(self, type):
+        return str(type) in self.str_types
 
 class GdbSubprinterRegex(GdbSubprinter):
     """
@@ -1137,8 +1198,30 @@ class GdbSubprinterRegex(GdbSubprinter):
         super(GdbSubprinterRegex, self).__init__(name, class_)
         self.regex = re.compile(regex)
 
-    def handles_type(self, str_type):
-        return self.regex.match(str_type)
+    def handles_type(self, type):
+        return self.regex.match(str(type))
+
+class GdbSubprinterTemplate(GdbSubprinter):
+    """
+    A GdbSubprinter that handles types that match a regex
+    """
+    def __init__(self, target, name, class_):
+        super(GdbSubprinterTemplate, self).__init__(name, class_)
+        self.name = target
+
+    def handles_type(self, type):
+        fullname = str(type)
+        nl = 0
+        for i in range(len(fullname)-1, -1, -1):
+            if fullname[i] == '>':
+                nl += 1
+            if fullname[i] == '<':
+                nl -= 1
+            if nl == 0:
+                break
+        else:
+            return False
+        return self.name == fullname[:i]
 
 class GdbPrettyPrinters(gdb.printing.PrettyPrinter):
     def __init__(self, name):
@@ -1150,11 +1233,21 @@ class GdbPrettyPrinters(gdb.printing.PrettyPrinter):
     def add_printer_for_regex(self, regex, name, class_):
         self.subprinters.append(GdbSubprinterRegex(regex, name, class_))
 
+    def add_printer_for_template(self, regex, name, class_):
+        self.subprinters.append(GdbSubprinterTemplate(regex, name, class_))
+
     def __call__(self, gdbval):
-        type_ = gdbval.type.unqualified()
-        str_type = str(type_)
+        type = gdbval.type
+        while True:
+            oldtype = type
+            if type.code in [gdb.TYPE_CODE_PTR, gdb.TYPE_CODE_REF, gdb.TYPE_CODE_RVALUE_REF]:
+                type = type.target()
+            type = type.strip_typedefs()
+            type = type.unqualified()
+            if type == oldtype:
+                break
         for printer in self.subprinters:
-            if printer.enabled and printer.handles_type(str_type):
+            if printer.enabled and printer.handles_type(type):
                 return printer.class_(gdbval)
 
         # Couldn't find a pretty printer (or it was disabled):
@@ -1163,9 +1256,11 @@ class GdbPrettyPrinters(gdb.printing.PrettyPrinter):
 
 def build_pretty_printer():
     pp = GdbPrettyPrinters('gcc')
-    pp.add_printer_for_types(['tree', 'const_tree', 'tree_node *', 'const tree_node *'],
+    pp.add_printer_for_types(['tree_node'],
                              'tree', TreePrinter)
-    pp.add_printer_for_types(['lang_tree', 'const_lang_tree', 'lang_tree_node *', 'const lang_tree_node *'],
+    pp.add_printer_for_template('hash_table', 'hash_table', HashTablePrinter)
+    pp.add_printer_for_template('hash_map', 'hash_table', HashMapPrinter)
+    pp.add_printer_for_types(['lang_tree_node'],
                              'lang_tree', TreeLangPrinter)
     pp.add_printer_for_types(['tree_base'],
                              'tree_base', TreeBasePrinter)
