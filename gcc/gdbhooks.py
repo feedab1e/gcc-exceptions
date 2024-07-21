@@ -1034,6 +1034,28 @@ class BasicBlockPrinter:
             result += ' (%s)' % bb_index_to_str(intptr(self.gdbval['index']))
         result += '>'
         return result
+    def children(self):
+        yield 'index', self.gdbval['index']
+        flags = int(self.gdbval['flags'])
+        tags = ['NEW', 'REACHABLE', 'IRREDUCIBLE_LOOP', 'SUPERBLOCK',
+                'DISABLE_SCHEDULE', 'HOT_PARTITION', 'COLD_PARTITION',
+                'DUPLICATED', 'NON_LOCAL_GOTO_TARGET', 'RTX', 'FORWARDER_BLOCK',
+                'NONTHREADABLE_BLOCK', 'MODIFIED', 'VISITED', 'IN_TRANSACTION']
+        yield 'flags', ' | '.join(
+            (tag for i, tag in enumerate(tags)
+             if tag and flags & (1 << i)))
+        if flags & (1<<9):
+            yield 'rtl', self.gdbval['il']['x']
+        else:
+            yield 'gimple', self.gdbval['il']['gimple']
+        yield 'prev_bb', self.gdbval['prev_bb']
+        yield 'next_bb', self.gdbval['next_bb']
+        yield 'incoming edges', self.gdbval['preds']
+        yield 'outgoing edges', self.gdbval['succs']
+        yield 'loop_father', self.gdbval['loop_father']
+        yield 'dominance info', self.gdbval['dom'][0]
+        yield 'postdominance info', self.gdbval['dom'][1]
+
 
 class CfgEdgePrinter:
     def __init__(self, gdbval):
