@@ -372,7 +372,6 @@ class HashTable:
                 while self.size > 0:
                     x = self.first.dereference()
                     self.first += 1
-                    print(self.size)
                     self.size -= 1
                     if not self.desc.is_empty(x) and not self.desc.is_deleted(x):
                         return x
@@ -384,7 +383,6 @@ class HashTablePrinter:
     def __init__(self, gdbval):
         self.val = HashTable(gdbval)
     def children(self):
-        print ('HERE')
         yield from ((str(k), v) for k, v in enumerate(self.val.iter()))
 
 class HashMapPrinter:
@@ -394,7 +392,6 @@ class HashMapPrinter:
     def display_hint(self):
         return 'map'
     def children(self):
-        print ('HERE')
         for i, x in enumerate(self.val.iter()):
             yield f'{i}.key', x['m_key']
             yield f'{i}.val', x['m_value']
@@ -447,7 +444,6 @@ class TreePrinter:
         if gdbval.type.code != gdb.TYPE_CODE_PTR:
             gdbval = gdbval.address
         self.gdbval = gdbval
-        print(gdbval.type)
         self.node = Tree(gdbval)
         self.is_lang = False
         if not frombase and self.node.is_nonnull() and cp_code_structure.get(int(self.node.TREE_CODE()), structure_generic) != structure_generic:
@@ -462,7 +458,6 @@ class TreePrinter:
             return 0
         if self.is_lang:
             foo = self.lang.num_children()
-            print(foo)
             return 2
         count = 0
         for n in range(64):
@@ -835,12 +830,10 @@ class TreeExpPrinter:
 
     def children (self):
         chld = self.num_children()
-        print(f'chld:{chld}')
         map = exp_op_map.get(int(self.treeval['typed']['base']['code']), None)
         if chld == 0:
             return
         curr = self.gdbval
-        print(f'chld:{chld}')
         for i in range(chld):
             elem = None
             if map:
