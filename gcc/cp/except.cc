@@ -203,6 +203,34 @@ void subtract_exception(tree& spec, tree exception)
       spec = noexcept_true_spec;
 }
 
+tree
+filter_exception_spec(tree spec, tree type)
+{
+  if (!type)
+    return spec;
+  if (is_noexcept_false_spec(spec))
+    return spec;
+  if (is_noexcept_spec(spec))
+    return spec;
+  gcc_assert(is_type_list_spec(spec));
+  tree record_out = NULL_TREE;
+  tree it = NULL_TREE;
+  for (; spec; spec = TREE_CHAIN(spec))
+    {
+      if (can_convert_eh(type, TREE_VALUE(spec), false))
+        {
+          tree new_node = build_tree_list(NULL_TREE, TREE_VALUE(spec));
+          if (!it)
+            it = record_out = new_node;
+          else
+            it = TREE_CHAIN(it) = new_node;
+        }
+    }
+  if (!record_out)
+    return noexcept_true_spec;
+  return record_out;
+}
+
 bool comp_except_types (tree, tree, bool);
 
 bool check_agains_spec (tree spec, tree check, bool issue_error)
@@ -1039,45 +1067,14 @@ build_throw (location_t loc, tree exp, tsubst_flags_t complain)
       if (!processing_template_decl)
         {
           auto ctx = get_exception_context();
-          if(ctx->in_flight)
+          tree to_merge[] =
             {
-              bool typed_throw = true;
-              bool noexcept_throw = false;
-              if(is_noexcept_spec(ctx->saved))
-                noexcept_throw = true;
-              if(!is_type_list_spec(ctx->saved))
-                typed_throw = false;
-              else
-                {
-                  bool matches = false;
-                  bool misses = false;
-                  for (tree p = ctx->saved; p; p = TREE_CHAIN(p))
-                    if (publicly_uniquely_derived_p(ctx->in_flight, TREE_VALUE(p)))
-                      {
-                        matches = true;
-                        if(!check_unambiguous_eh_cast(ctx->in_flight, TREE_VALUE(p)))
-                          misses = true;
-                      }
-                  if (matches && misses)
-                    typed_throw = false;
-                  else if (!matches)
-                    noexcept_throw = true;
-                }
-              tree to_merge[] =
-                {
-                ctx->current,
-                noexcept_throw
-                  ? noexcept_true_spec
-                  : typed_throw
-                  ? tree_cons(NULL_TREE, ctx->in_flight, NULL_TREE)
-                  : noexcept_false_spec
-                };
-              ctx->current = merge_exception_specs(to_merge,
-                                                   sizeof to_merge
-                                                   / sizeof to_merge[0]);
-            }
-          else
-            ctx->current = noexcept_false_spec;
+            ctx->current,
+            filter_exception_spec(ctx->saved, ctx->in_flight),
+            };
+          ctx->current = merge_exception_specs(to_merge,
+                                               sizeof to_merge
+                                               / sizeof to_merge[0]);
         }
     }
 
