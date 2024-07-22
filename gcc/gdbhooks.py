@@ -441,7 +441,7 @@ class TreePrinter:
     "Prints a tree"
 
     def __init__ (self, gdbval, frombase = False):
-        if gdbval.type.code != gdb.TYPE_CODE_PTR:
+        if gdb.types.get_basic_type(gdbval.type).code != gdb.TYPE_CODE_PTR:
             gdbval = gdbval.address
         self.gdbval = gdbval
         self.node = Tree(gdbval)
