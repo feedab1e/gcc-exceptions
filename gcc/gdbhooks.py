@@ -223,6 +223,8 @@ def init_globals(event):
     structure_generic = int(cp_tree_node_structure_enum['TS_CP_GENERIC'])
     global structure_inverse
     structure_inverse = {v:k[6:].lower() for k, v in cp_tree_node_structure_enum.items()}
+    global eh_region_type_enum
+    eh_region_type_enum = gdb.types.make_enum_dict(gdb.lookup_type('enum eh_region_type'))
 
     # constexpr inline enum tree_code_class tree_code_type[] = { ... };
     # #define TREE_CODE_CLASS(CODE)	tree_code_type[(int) (CODE)]
@@ -920,6 +922,50 @@ class TreeVecPrinter:
             yield (f'[{i}]', curr['a'][i])
 
 ######################################################################
+# Exception handling pretty-printers
+######################################################################
+
+class EhRegionDPrinter:
+    def __init__ (self, gdbval):
+        self.gdbval = gdbval
+        self.gdbtyp = gdbval.type
+    class EhRegionUTryPrinter:
+        def __init__ (self, gdbval):
+            self.gdbval = gdbval
+            self.gdbtyp = gdbval.type
+        def children(self):
+            i = 0
+            start = self.gdbval['first_catch']
+            stop = self.gdbval['last_catch']
+            while True:
+                yield f'[{i}]', start
+                i += 1
+                if start == stop:
+                    break
+                start = start['next_catch']
+
+    def children(self):
+        region_type = self.gdbval["type"]
+        for field in self.gdbtyp.fields():
+            if field.name == 'u':
+                val = self.gdbval[field]
+                if region_type == eh_region_type_enum["ERT_CLEANUP"]:
+                    yield "cleanup", 0
+                elif region_type == eh_region_type_enum["ERT_TRY"]:
+                    yield "try", val["eh_try"]
+                elif region_type == eh_region_type_enum["ERT_ALLOWED_EXCEPTIONS"]:
+                    yield "allowed", val["allowed"]
+                elif region_type == eh_region_type_enum["ERT_MUST_NOT_THROW"]:
+                    yield "must_not_throw", val["must_not_throw"]
+            elif field.name == "type":
+                pass
+            else:
+                yield field.name, self.gdbval[field]
+
+
+
+
+######################################################################
 # Callgraph pretty-printers
 ######################################################################
 
@@ -1276,8 +1322,14 @@ class GdbPrettyPrinters(gdb.printing.PrettyPrinter):
 
     def __call__(self, gdbval):
         type = gdb.types.get_basic_type(gdbval.type)
-        while type.code in [gdb.TYPE_CODE_PTR, gdb.TYPE_CODE_REF, gdb.TYPE_CODE_RVALUE_REF]:
-            type = type.target()
+        try:
+            while type.code in [gdb.TYPE_CODE_PTR, gdb.TYPE_CODE_REF, gdb.TYPE_CODE_RVALUE_REF]:
+                if type.target().code == gdb.TYPE_CODE_VOID:
+                    break
+                gdbval = gdbval.dereference()
+                type = gdb.types.get_basic_type(gdbval.type)
+        except:
+            print(f"Python hooks unable to dereference type: {type}")
         type = type.unqualified()
         for printer in self.subprinters:
             if printer.enabled and printer.handles_type(type):
@@ -1313,6 +1365,10 @@ def build_pretty_printer():
                              'tree_statement_list', TreeStmtListPrinter)
     pp.add_printer_for_types(['tree_vec'],
                              'tree_vec', TreeVecPrinter)
+    pp.add_printer_for_types(['eh_region_d'],
+                             'eh_region_d', EhRegionDPrinter)
+    pp.add_printer_for_types(['eh_region_d::eh_region_u::eh_region_u_try'],
+                             'eh_region_u_try', EhRegionDPrinter.EhRegionUTryPrinter)
     pp.add_printer_for_types(['cgraph_node *', 'varpool_node *', 'symtab_node *'],
                              'symtab_node', SymtabNodePrinter)
     pp.add_printer_for_types(['symbol_table *', 'symbol_table'], 'symbol_table',
