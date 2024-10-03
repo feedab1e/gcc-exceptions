@@ -561,7 +561,7 @@ walk_gimple_op (gimple *stmt, walk_tree_fn callback_op,
       {
 	enum gimple_statement_structure_enum gss;
 	gss = gimple_statement_structure (stmt);
-	if (gss == GSS_WITH_OPS || gss == GSS_WITH_MEM_OPS)
+	if (gimple_has_ops(stmt))
 	  for (i = 0; i < gimple_num_ops (stmt); i++)
 	    {
 	      ret = walk_tree (gimple_op_ptr (stmt, i), callback_op, wi, pset);
@@ -975,7 +975,23 @@ walk_stmt_load_store_addr_ops (gimple *stmt, void *data,
       if (TREE_CODE (op) == ADDR_EXPR)
 	ret |= visit_addr (stmt, TREE_OPERAND (op, 0), op, data);
     }
-
+  else if (graise *raise_stmt = dyn_cast <graise *> (stmt))
+    {
+      if (visit_load || visit_addr)
+        for (i = 0; i < gimple_num_ops (raise_stmt); ++i)
+          {
+            tree arg = gimple_op (raise_stmt, i);
+            if (visit_addr
+                && TREE_CODE (arg) == ADDR_EXPR)
+              ret |= visit_addr (stmt, TREE_OPERAND (arg, 0), arg, data);
+            else if (visit_load)
+              {
+                tree rhs = get_base_loadstore (arg);
+                if (rhs)
+                  ret |= visit_load (stmt, rhs, arg, data);
+              }
+          }
+    }
   return ret;
 }
 

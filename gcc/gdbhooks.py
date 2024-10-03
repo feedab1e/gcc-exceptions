@@ -145,7 +145,6 @@ import sys
 import tempfile
 import typing
 from collections import namedtuple
-from mnemonic import Mnemonic
 import re
 
 import gdb
@@ -153,9 +152,8 @@ import gdb.printing
 import gdb.types
 import gdb.events
 
-m = Mnemonic('english')
 def alias(x):
-    return re.compile(r'\w+ \w+').match(m.to_mnemonic(x.to_bytes(16, byteorder='little')))[0]
+    return x
 def convert_codes(tree_code_dict, cp_tree_code_dict):
     return {int(v):int(cp_tree_code_dict.get("TS_CP_"+k, cp_tree_code_dict["TS_CP_GENERIC"])) for k, v in tree_code_dict.items()}
 
@@ -799,10 +797,7 @@ class TreeStringCstPrinter:
     def display_hint (self):
         return 'string'
     def to_string(self):
-        out = ''
-        for i in range(self.gdbval['length']):
-            out += self.gdbval['str'][i]
-        return out
+        return self.gdbval['str']
 
 class TreeStmtListPrinter:
     "Prints a tree_statement_list part of tree"
@@ -845,7 +840,7 @@ class TreeExpPrinter:
                 elif type(elem) is not str:
                     yield elem(self.gdbval, self.treeval)
                     continue
-            yield f'[{elem if elem is not None else i}]', curr['operands'][i]
+            yield f'[{elem if elem is not None else i}]', curr['operands'][i].dereference()
 
 class TreeTypeNonCommonPrinter:
     "Prints a tree_exp part of tree"
@@ -883,8 +878,10 @@ class TreeListPrinter:
         curr = self.gdbval.address.cast(tree_type_node.pointer())
         n = 0
         while curr != 0:
-            yield (f'[{n}]', curr['list']['value'])
-            yield (f'[{n}.purpose]', curr['list']['purpose'])
+            if curr['list']['value']:
+                yield (f'[{n}]', curr['list']['value'].dereference())
+            if curr['list']['purpose']:
+                yield (f'[{n}.purpose]', curr['list']['purpose'].dereference())
             n+=1
             curr = curr['common']['chain']
 
@@ -941,6 +938,20 @@ class SymtabNodePrinter:
             result += ' "%s"/%d' % (tree_decl.DECL_NAME().IDENTIFIER_POINTER(), self.gdbval['order'])
         result += '>'
         return result
+
+class SymtabPrinter:
+    def __init__(self, gdbval):
+        self.gdbval = gdbval
+    def children (self):
+        typ = self.gdbval.type
+        for i, field in enumerate(typ.fields()):
+            val = self.gdbval[field]
+            yield field.name, val
+        node = self.gdbval["nodes"]
+        while int(node):
+            name = node["decl"]["decl_minimal"]["name"]["identifier"]["id"]["str"]
+            yield f"[{name}]", node.dereference()
+            node = node["next"]
 
 class CgraphEdgePrinter:
     def __init__(self, gdbval):
@@ -1004,6 +1015,18 @@ class GimplePrinter:
                                intptr(self.gdbval))
         result += '>'
         return result
+    def children (self):
+        typ = self.gdbval.type
+        for i, field in enumerate(typ.fields()):
+            val = self.gdbval[field]
+            if field.name != "op":
+                yield field.name, val
+            else:
+                ty = val.type
+                ty2 = ty.target().array(self.gdbval["num_ops"])
+                print(f"{ty}, {ty2}")
+                yield field.name, val.address.cast(ty2.pointer())
+
 
 ######################################################################
 # CFG pretty-printers
@@ -1252,15 +1275,10 @@ class GdbPrettyPrinters(gdb.printing.PrettyPrinter):
         self.subprinters.append(GdbSubprinterTemplate(regex, name, class_))
 
     def __call__(self, gdbval):
-        type = gdbval.type
-        while True:
-            oldtype = type
-            if type.code in [gdb.TYPE_CODE_PTR, gdb.TYPE_CODE_REF, gdb.TYPE_CODE_RVALUE_REF]:
-                type = type.target()
-            type = type.strip_typedefs()
-            type = type.unqualified()
-            if type == oldtype:
-                break
+        type = gdb.types.get_basic_type(gdbval.type)
+        while type.code in [gdb.TYPE_CODE_PTR, gdb.TYPE_CODE_REF, gdb.TYPE_CODE_RVALUE_REF]:
+            type = type.target()
+        type = type.unqualified()
         for printer in self.subprinters:
             if printer.enabled and printer.handles_type(type):
                 return printer.class_(gdbval)
@@ -1271,7 +1289,7 @@ class GdbPrettyPrinters(gdb.printing.PrettyPrinter):
 
 def build_pretty_printer():
     pp = GdbPrettyPrinters('gcc')
-    pp.add_printer_for_types(['tree_node'],
+    pp.add_printer_for_types(['tree_node', 'tree', 'tree_node *'],
                              'tree', TreePrinter)
     pp.add_printer_for_template('hash_table', 'hash_table', HashTablePrinter)
     pp.add_printer_for_template('hash_map', 'hash_table', HashMapPrinter)
@@ -1297,6 +1315,8 @@ def build_pretty_printer():
                              'tree_vec', TreeVecPrinter)
     pp.add_printer_for_types(['cgraph_node *', 'varpool_node *', 'symtab_node *'],
                              'symtab_node', SymtabNodePrinter)
+    pp.add_printer_for_types(['symbol_table *', 'symbol_table'], 'symbol_table',
+                             SymtabPrinter)
     pp.add_printer_for_types(['cgraph_edge *'],
                              'cgraph_edge', CgraphEdgePrinter)
     pp.add_printer_for_types(['ipa_ref *'],
@@ -1306,20 +1326,15 @@ def build_pretty_printer():
     pp.add_printer_for_types(['gimple', 'gimple *',
 
                               # Keep this in the same order as gimple.def:
-                              'gimple_cond', 'const_gimple_cond',
-                              'gimple_statement_cond *',
-                              'gimple_debug', 'const_gimple_debug',
-                              'gimple_statement_debug *',
-                              'gimple_label', 'const_gimple_label',
-                              'gimple_statement_label *',
-                              'gimple_switch', 'const_gimple_switch',
-                              'gimple_statement_switch *',
-                              'gimple_assign', 'const_gimple_assign',
-                              'gimple_statement_assign *',
-                              'gimple_bind', 'const_gimple_bind',
-                              'gimple_statement_bind *',
-                              'gimple_phi', 'const_gimple_phi',
-                              'gimple_statement_phi *'],
+                              'gcond *', 'const gcond *', 'gcond', 'const gcond',
+                              'gdebug *', 'const gdebug *', 'gdebug', 'const gdebug',
+                              'glabel *', 'const glabel *', 'glabel', 'const glabel',
+                              'gswitch *', 'const gswitch *', 'gswitch', 'const gswitch',
+                              'gassign *', 'const gassign *', 'gassign', 'const gassign',
+                              'gbind *', 'const gbind *', 'gbind', 'const gbind',
+                              'gphi *', 'const gphi *', 'gphi', 'const gphi',
+                              'gcall *', 'const gcall *', 'gcall', 'const gcall',
+                              'graise *', 'const graise *', 'graise', 'const graise',],
 
                              'gimple',
                              GimplePrinter)

@@ -3288,6 +3288,11 @@ bot_manip (tree* tp, int* walk_subtrees, void* data_)
 
   /* Make a copy of this node.  */
   t = copy_tree_r (tp, walk_subtrees, NULL);
+  if (TREE_CODE(*tp) == RAISE_EXPR)
+    if (!processing_template_decl && cfun && cp_function_chain
+        && !cp_unevaluated_operand)
+      if (at_function_scope_p ())
+        cp_function_chain->can_throw = 1;
   if (TREE_CODE (*tp) == CALL_EXPR || TREE_CODE (*tp) == AGGR_INIT_EXPR)
     if (!processing_template_decl)
       set_flags_from_callee (*tp);

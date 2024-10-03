@@ -795,6 +795,10 @@ do_allocate_exception (tree type)
       = declare_library_fn ("__cxa_allocate_exception",
 			    ptr_type_node, size_type_node,
 			    ECF_NOTHROW | ECF_MALLOC | ECF_COLD, ECF_TM_PURE);
+  builtin_info[BUILT_IN_CXA_ALLOCATE_EXCEPTION] = {
+                                                     allocate_exception_fn,
+                                                     true, true
+                                                  };
 
   return cp_build_function_call_nary (allocate_exception_fn,
 				      tf_warning_or_error,
@@ -813,6 +817,7 @@ do_free_exception (tree ptr)
       = declare_library_fn ("__cxa_free_exception",
 			    void_type_node, ptr_type_node,
 			    ECF_NOTHROW | ECF_LEAF, ECF_TM_PURE);
+  builtin_info[BUILT_IN_CXA_FREE_EXCEPTION] = {free_exception_fn, true, true};
 
   return cp_build_function_call_nary (free_exception_fn,
 				      tf_warning_or_error, ptr, NULL_TREE);
@@ -897,6 +902,8 @@ build_throw (location_t loc, tree exp, tsubst_flags_t complain)
 	  throw_fn = declare_library_fn_1 ("__cxa_throw",
 					   ECF_NORETURN | ECF_XTHROW | ECF_COLD,
 					   void_type_node, 3, args);
+
+          builtin_info[BUILT_IN_CXA_THROW] = {throw_fn, true, true};
 	  if (flag_tm && throw_fn != error_mark_node)
 	    {
 	      tree itm_fn = declare_library_fn_1 ("_ITM_cxa_throw",
@@ -1034,9 +1041,16 @@ build_throw (location_t loc, tree exp, tsubst_flags_t complain)
       if (!processing_template_decl)
         push_exception_context();
       /* ??? Indicate that this function call throws throw_type.  */
-      tree tmp = cp_build_function_call_nary (throw_fn, complain,
-					      ptr, throw_type, cleanup,
-					      NULL_TREE);
+      tree tmp = build3 (RAISE_EXPR, exception_type, ptr, cleanup, throw_type);
+      // tree tmp = cp_build_function_call_nary (throw_fn, complain,
+					 //      ptr, throw_type, cleanup,
+					 //      NULL_TREE);
+
+      if (cfun && cp_function_chain && !cp_unevaluated_operand)
+        {
+          cp_function_chain->can_throw = 1;
+          current_function_returns_abnormally = 1;
+        }
       if (!processing_template_decl)
         pop_exception_context();
 
@@ -1054,6 +1068,7 @@ build_throw (location_t loc, tree exp, tsubst_flags_t complain)
 					     ECF_NORETURN | ECF_XTHROW
 					     | ECF_COLD,
 					     void_type_node, 0, NULL);
+          builtin_info[BUILT_IN_CXA_RETHROW] = {rethrow_fn, true, true};
 	  if (flag_tm && rethrow_fn != error_mark_node)
 	    apply_tm_attr (rethrow_fn, get_identifier ("transaction_pure"));
 	}
@@ -1344,6 +1359,8 @@ check_noexcept_r (tree *tp, int *walk_subtrees, void *)
 
   if (unevaluated_p (code))
     *walk_subtrees = false;
+  else if (code == RAISE_EXPR)
+    return boolean_true_node;
   else if ((code == CALL_EXPR && CALL_EXPR_FN (t))
 	   || code == AGGR_INIT_EXPR)
     {

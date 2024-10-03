@@ -2049,6 +2049,7 @@ lower_eh_constructs_2 (struct leh_state *state, gimple_stmt_iterator *gsi)
       }
       /* FALLTHRU */
 
+    case GIMPLE_RAISE:
     case GIMPLE_ASSIGN:
       /* If the stmt can throw, use a new temporary for the assignment
          to a LHS.  This makes sure the old value of the LHS is
@@ -2926,6 +2927,7 @@ stmt_could_throw_p (function *fun, gimple *stmt)
      conditionals, calls, resx, and asms.  */
   switch (gimple_code (stmt))
     {
+    case GIMPLE_RAISE:
     case GIMPLE_RESX:
       return true;
 
@@ -2987,6 +2989,8 @@ tree_could_throw_p (tree t)
 
   if (TREE_CODE (t) == WITH_SIZE_EXPR)
     t = TREE_OPERAND (t, 0);
+  if (TREE_CODE (t) == RAISE_EXPR)
+    return true;
   if (TREE_CODE (t) == CALL_EXPR)
     return (call_expr_flags (t) & ECF_NOTHROW) == 0;
   if (cfun->can_throw_non_call_exceptions)

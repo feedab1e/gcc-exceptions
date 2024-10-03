@@ -1287,11 +1287,11 @@ pass_harden_control_flow_redundancy::execute (function *fun)
 		       && EDGE_COUNT (bb->succs) == 0
 		       && (is_a <gresx *> (stmt)
 			   ? check_before_always_throwing_noreturn_calls
-			   : (!is_a <gcall *> (stmt)
-			      || !gimple_call_noreturn_p (stmt))
+			   : (!is_a <graise *> (stmt) && (!is_a <gcall *> (stmt)
+			      || !gimple_call_noreturn_p (stmt)))
 			   ? (gcc_unreachable (), false)
-			   : (!flag_exceptions
-			      || gimple_call_nothrow_p (as_a <gcall *> (stmt)))
+			   : (!flag_exceptions || (!is_a <graise *> (stmt)
+			      && gimple_call_nothrow_p (as_a <gcall *> (stmt))))
 			   ? check_before_nothrow_noreturn_calls
 			   : always_throwing_noreturn_call_p (stmt)
 			   ? check_before_always_throwing_noreturn_calls

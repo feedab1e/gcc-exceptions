@@ -18217,6 +18217,25 @@ gimplify_expr (tree *expr_p, gimple_seq *pre_p, gimple_seq *post_p,
 	  ret = gimplify_asm_expr (expr_p, pre_p, post_p);
 	  break;
 
+        case RAISE_EXPR:
+          {
+	    enum gimplify_status r0 = GS_ALL_DONE;
+            enum gimplify_status r1 = GS_ALL_DONE;
+            enum gimplify_status r2 = GS_ALL_DONE;
+            r0 = gimplify_expr(&TREE_OPERAND(*expr_p, 0), pre_p, post_p,
+                                is_gimple_val, fb_rvalue);
+            r1 = gimplify_expr(&TREE_OPERAND(*expr_p, 1), pre_p, post_p,
+                                is_gimple_val, fb_rvalue);
+            r2 = gimplify_expr(&TREE_OPERAND(*expr_p, 2), pre_p, post_p,
+                                is_gimple_val, fb_rvalue);
+            ret = MIN (r0, MIN (r1, r2));
+            graise *c = gimple_build_raise(TREE_TYPE(*expr_p),
+                                           TREE_OPERAND(*expr_p, 0),
+                                           TREE_OPERAND(*expr_p, 1),
+                                           TREE_OPERAND(*expr_p, 2));
+            gimplify_seq_add_stmt (pre_p, c);
+            break;
+          }
 	case TRY_FINALLY_EXPR:
 	case TRY_CATCH_EXPR:
 	  {

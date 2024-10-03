@@ -971,6 +971,11 @@ operands_scanner::parse_ssa_operands ()
     case GIMPLE_RETURN:
       append_vuse (gimple_vop (fn));
       goto do_default;
+    case GIMPLE_RAISE:
+      append_vuse (gimple_vop (fn));
+      //if (gimple_op_ptr (stmt, 0))
+        goto do_default;
+      break;
 
     case GIMPLE_CALL:
       /* Add call-clobbered operands, if needed.  */

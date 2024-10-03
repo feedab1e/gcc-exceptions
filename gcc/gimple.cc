@@ -189,6 +189,20 @@ gimple_build_with_ops_stat (enum gimple_code code, unsigned subcode,
   return s;
 }
 
+/* Build a GIMPLE_RAISE statement throwing THRVAL.  */
+
+graise *
+gimple_build_raise (tree type, tree thrval, tree dtor, tree rtti)
+{
+  graise *s
+    = as_a <graise *> (gimple_build_with_ops (GIMPLE_RAISE, ERROR_MARK,
+                                               3));
+  s->type = type;
+  s->op[0] = thrval;
+  s->op[1] = dtor;
+  s->op[2] = rtti;
+  return s;
+}
 
 /* Build a GIMPLE_RETURN statement returning RETVAL.  */
 

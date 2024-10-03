@@ -885,7 +885,7 @@ make_edges_bb (basic_block bb, struct omp_region **pcur_region, int *pomp_index)
     case GIMPLE_EH_DISPATCH:
       fallthru = make_eh_dispatch_edges (as_a <geh_dispatch *> (last));
       break;
-
+    case GIMPLE_RAISE:
     case GIMPLE_CALL:
       /* If this function receives a nonlocal goto, then we need to
 	 make edges from this call site to all the nonlocal goto
@@ -905,7 +905,7 @@ make_edges_bb (basic_block bb, struct omp_region **pcur_region, int *pomp_index)
 	}
       /* Some calls are known not to return.  */
       else
-	fallthru = !gimple_call_noreturn_p (last);
+	fallthru = !(last->code == GIMPLE_RAISE) && !gimple_call_noreturn_p (last);
       break;
 
     case GIMPLE_ASSIGN:
@@ -2750,6 +2750,8 @@ call_can_make_abnormal_goto (gimple *t)
 bool
 stmt_can_make_abnormal_goto (gimple *t)
 {
+  if (t->code == GIMPLE_RAISE)
+    return true;
   if (computed_goto_p (t))
     return true;
   if (is_gimple_call (t))
@@ -2769,6 +2771,7 @@ is_ctrl_stmt (gimple *t)
     case GIMPLE_SWITCH:
     case GIMPLE_GOTO:
     case GIMPLE_RETURN:
+    case GIMPLE_RAISE:
     case GIMPLE_RESX:
       return true;
     default:
@@ -4856,6 +4859,53 @@ verify_gimple_assign (gassign *stmt)
     }
 }
 
+/* Verify the contents of a GIMPLE_RAISE STMT.  Returns true when there
+   is a problem, otherwise false.  */
+
+static bool
+verify_gimple_raise (graise *stmt)
+{
+  tree type = stmt->type;
+  tree thrval = stmt->op[0];
+  tree dtor = stmt->op[1];
+  tree rtti = stmt->op[2];
+
+  /* We cannot test for present return values as we do not fix up missing
+     return values from the original source.  */
+  if (!type)
+    {
+      if (thrval || dtor || rtti)
+        {
+          error ("operands in rethrow stmt");
+          return true;
+        }
+    }
+  else
+    {
+      if (!thrval || !rtti)
+        {
+          error ("no operands in throw stmt");
+          return true;
+        }
+      if (dtor && !is_gimple_val (dtor))
+        {
+          error ("invalid dtor in throw stmt");
+          debug_generic_stmt (dtor);
+          return true;
+        }
+      if (!is_gimple_val (thrval) && is_gimple_val (rtti))
+        {
+          error ("invalid operand in throw statement");
+          debug_generic_stmt (thrval);
+          debug_generic_stmt (dtor);
+          return true;
+        }
+    }
+
+  return false;
+}
+
+
 /* Verify the contents of a GIMPLE_RETURN STMT.  Returns true when there
    is a problem, otherwise false.  */
 
@@ -5104,6 +5154,8 @@ verify_gimple_stmt (gimple *stmt)
 {
   switch (gimple_code (stmt))
     {
+    case GIMPLE_RAISE:
+      return verify_gimple_raise (as_a <graise *> (stmt));
     case GIMPLE_ASSIGN:
       return verify_gimple_assign (as_a <gassign *> (stmt));
 

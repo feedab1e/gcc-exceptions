@@ -960,6 +960,12 @@ struct GTY((tag("GSS_WITH_MEM_OPS")))
 {
   /* no additional fields; this uses the layout for GSS_WITH_MEM_OPS. */
 };
+struct GTY((tag("GSS_RAISE")))
+  graise : public gimple_statement_with_memory_ops_base
+{
+  tree type;
+  tree GTY((length ("%h.num_ops"))) op[1];
+};
 
 template <>
 template <>
@@ -1512,6 +1518,22 @@ is_a_helper <const gphi *>::test (const gimple *gs)
 template <>
 template <>
 inline bool
+is_a_helper <const graise *>::test (const gimple *gs)
+{
+  return gs->code == GIMPLE_RAISE;
+}
+
+template <>
+template <>
+inline bool
+is_a_helper <graise *>::test (gimple *gs)
+{
+  return gs->code == GIMPLE_RAISE;
+}
+
+template <>
+template <>
+inline bool
 is_a_helper <const greturn *>::test (const gimple *gs)
 {
   return gs->code == GIMPLE_RETURN;
@@ -1547,6 +1569,7 @@ extern gimple *currently_expanding_gimple_stmt;
 size_t gimple_size (enum gimple_code code, unsigned num_ops = 0);
 void gimple_init (gimple *g, enum gimple_code code, unsigned num_ops);
 gimple *gimple_alloc (enum gimple_code, unsigned CXX_MEM_STAT_INFO);
+graise *gimple_build_raise (tree, tree, tree, tree);
 greturn *gimple_build_return (tree);
 void gimple_call_reset_alias_info (gcall *);
 gcall *gimple_build_call_vec (tree, const vec<tree> &);
@@ -2220,6 +2243,8 @@ gimple_set_use_ops (gimple *g, struct use_optype_d *use)
 inline tree
 gimple_vuse (const gimple *g)
 {
+  const graise *raise_stmt = dyn_cast <const graise *> (g);
+  if (raise_stmt) return raise_stmt->vuse;
   const gimple_statement_with_memory_ops *mem_ops_stmt =
      dyn_cast <const gimple_statement_with_memory_ops *> (g);
   if (!mem_ops_stmt)
@@ -2232,6 +2257,8 @@ gimple_vuse (const gimple *g)
 inline tree
 gimple_vdef (const gimple *g)
 {
+  const graise *raise_stmt = dyn_cast <const graise *> (g);
+  if (raise_stmt) return raise_stmt->vdef;
   const gimple_statement_with_memory_ops *mem_ops_stmt =
      dyn_cast <const gimple_statement_with_memory_ops *> (g);
   if (!mem_ops_stmt)
@@ -2244,6 +2271,8 @@ gimple_vdef (const gimple *g)
 inline tree *
 gimple_vuse_ptr (gimple *g)
 {
+  graise *raise_stmt = dyn_cast <graise *> (g);
+  if (raise_stmt) return &raise_stmt->vuse;
   gimple_statement_with_memory_ops *mem_ops_stmt =
      dyn_cast <gimple_statement_with_memory_ops *> (g);
   if (!mem_ops_stmt)
@@ -2256,6 +2285,8 @@ gimple_vuse_ptr (gimple *g)
 inline tree *
 gimple_vdef_ptr (gimple *g)
 {
+  graise *raise_stmt = dyn_cast <graise *> (g);
+  if (raise_stmt) return &raise_stmt->vdef;
   gimple_statement_with_memory_ops *mem_ops_stmt =
      dyn_cast <gimple_statement_with_memory_ops *> (g);
   if (!mem_ops_stmt)
@@ -3537,6 +3568,8 @@ gimple_call_noreturn_p (const gcall *s)
 inline bool
 gimple_call_noreturn_p (const gimple *s)
 {
+  if (is_a <const graise *> (s))
+    return true;
   const gcall *gc = GIMPLE_CHECK2<const gcall *> (s);
   return gimple_call_noreturn_p (gc);
 }

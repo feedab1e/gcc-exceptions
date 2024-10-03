@@ -3870,6 +3870,19 @@ expand_return (tree retval)
     }
 }
 
+static void expand_raise_stmt (graise *stmt)
+{
+  if (!stmt->type)
+    expand_call_stmt(gimple_build_call(builtin_info[BUILT_IN_CXA_RETHROW].decl,
+                                       0));
+  else
+    expand_call_stmt(gimple_build_call(builtin_info[BUILT_IN_CXA_THROW].decl,
+                                       3, stmt->op[0], stmt->op[2],
+                                       stmt->op[1]));
+}
+
+
+
 /* Expand a clobber of LHS.  If LHS is stored it in a multi-part
    register, tell the rtl optimizers that its value is no longer
    needed.  */
@@ -3927,6 +3940,9 @@ expand_gimple_stmt_1 (gimple *stmt)
       break;
     case GIMPLE_ASM:
       expand_asm_stmt (as_a <gasm *> (stmt));
+      break;
+    case GIMPLE_RAISE:
+      expand_raise_stmt (as_a <graise *> (stmt));
       break;
     case GIMPLE_CALL:
       expand_call_stmt (as_a <gcall *> (stmt));

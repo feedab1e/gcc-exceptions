@@ -216,6 +216,7 @@ mark_stmt_if_obviously_necessary (gimple *stmt, bool aggressive)
     case GIMPLE_ASM:
     case GIMPLE_RESX:
     case GIMPLE_RETURN:
+    case GIMPLE_RAISE:
       mark_stmt_necessary (stmt, true);
       return;
 
@@ -990,6 +991,22 @@ propagate_necessity (bool aggressive)
 		    mark_aliased_reaching_defs_necessary (stmt, op);
 		}
 	    }
+          else if (graise *raise_stmt = dyn_cast <graise *> (stmt))
+            {
+	      unsigned i;
+              mark_all_reaching_defs_necessary(raise_stmt);
+              for (i = 0; i < gimple_num_ops (raise_stmt); ++i)
+                {
+                  tree arg = gimple_op (raise_stmt, i);
+                  if (TREE_CODE (arg) == SSA_NAME
+                      || is_gimple_min_invariant (arg))
+                    continue;
+                  if (TREE_CODE (arg) == WITH_SIZE_EXPR)
+                    arg = TREE_OPERAND (arg, 0);
+                  if (!ref_may_be_aliased (arg))
+                    mark_aliased_reaching_defs_necessary (raise_stmt, arg);
+                }
+            }
 	  else if (gimple_code (stmt) == GIMPLE_TRANSACTION)
 	    {
 	      /* The beginning of a transaction is a memory barrier.  */

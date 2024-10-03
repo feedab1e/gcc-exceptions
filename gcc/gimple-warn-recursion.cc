@@ -94,6 +94,8 @@ pass_warn_recursion::find_function_exit (basic_block bb)
   for (auto si = gsi_start_bb (bb); !gsi_end_p (si); gsi_next_nondebug (&si))
     {
       gimple *stmt = gsi_stmt (si);
+      if (gimple_code (stmt) == GIMPLE_RAISE)
+        return true;
       if (!is_gimple_call (stmt))
 	continue;
 

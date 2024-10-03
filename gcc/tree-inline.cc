@@ -4563,6 +4563,7 @@ estimate_num_insns (gimple *stmt, eni_weights *weights)
 	 argument, or two register copy statements plus a goto.  */
       return 2;
 
+    case GIMPLE_RAISE:
     case GIMPLE_EH_DISPATCH:
       /* ??? This is going to turn into a switch statement.  Ideally
 	 we'd have a look at the eh region and estimate the number of

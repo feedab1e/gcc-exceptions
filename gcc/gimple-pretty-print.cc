@@ -693,6 +693,30 @@ dump_gimple_assign (pretty_printer *buffer, const gassign *gs, int spc,
 }
 
 
+/* Dump the throw statement GS.  BUFFER, SPC and FLAGS are as in
+   pp_gimple_stmt_1.  */
+
+static void
+dump_gimple_raise (pretty_printer *buffer, const graise *gs, int spc,
+                    dump_flags_t flags)
+{
+  tree t;
+
+  t = gs->op[0];
+  if (flags & TDF_RAW)
+    dump_gimple_fmt (buffer, spc, flags, "%G <%T>", gs, t);
+  else
+    {
+      pp_string (buffer, "raise");
+      if (t)
+        {
+          pp_space (buffer);
+          dump_generic_node (buffer, t, spc, flags, false);
+        }
+      pp_semicolon (buffer);
+    }
+}
+
 /* Dump the return statement GS.  BUFFER, SPC and FLAGS are as in
    pp_gimple_stmt_1.  */
 
@@ -2872,6 +2896,9 @@ pp_gimple_stmt_1 (pretty_printer *buffer, const gimple *gs, int spc,
     case GIMPLE_TRANSACTION:
       dump_gimple_transaction (buffer, as_a <const gtransaction *> (gs), spc,
 			       flags);
+      break;
+    case GIMPLE_RAISE:
+      dump_gimple_raise (buffer, as_a <const graise *> (gs), spc, flags);
       break;
 
     default:

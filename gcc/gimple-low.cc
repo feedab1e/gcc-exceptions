@@ -760,6 +760,7 @@ lower_stmt (gimple_stmt_iterator *gsi, struct lower_data *data)
     case GIMPLE_OMP_ATOMIC_LOAD:
     case GIMPLE_OMP_ATOMIC_STORE:
     case GIMPLE_OMP_CONTINUE:
+    case GIMPLE_RAISE:
       break;
 
     case GIMPLE_CALL:
@@ -1068,6 +1069,7 @@ gimple_stmt_may_fallthru (gimple *stmt)
     {
     case GIMPLE_GOTO:
     case GIMPLE_RETURN:
+    case GIMPLE_RAISE:
     case GIMPLE_RESX:
       /* Easy cases.  If the last statement of the seq implies
 	 control transfer, then we can't fall through.  */

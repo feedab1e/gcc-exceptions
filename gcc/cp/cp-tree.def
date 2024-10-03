@@ -88,6 +88,11 @@ DEFTREECODE (VEC_INIT_EXPR, "vec_init_expr", tcc_expression, 2)
 /* A throw expression.  operand 0 is the expression, if there was one,
    else it is NULL_TREE.  */
 DEFTREECODE (THROW_EXPR, "throw_expr", tcc_expression, 1)
+/* A throw expression.  operand 0 is the pointer to thrown value, if there was
+   one, else the expression is considered a rethrow. operand 1 is the destructor
+   for the value, if there is one. operand 2 is the typeinfo object for the
+   value */
+DEFTREECODE (RAISE_EXPR, "raise_expr", tcc_expression, 3)
 
 /* An empty class object.  The TREE_TYPE gives the class type.  We use
    these to avoid actually creating instances of the empty classes.  */

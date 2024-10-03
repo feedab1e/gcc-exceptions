@@ -132,6 +132,12 @@ DEFGSCODE(GIMPLE_CALL, "gimple_call", GSS_CALL)
    so that it can clobber global memory.  */
 DEFGSCODE(GIMPLE_TRANSACTION, "gimple_transaction", GSS_TRANSACTION)
 
+/* GIMPLE_RAISE <THRVAL, DTOR, RTTI> represents throw statements.
+
+   RETVAL is the pointer to the value to throw or NULL.  If a value is thrown it
+   must be accepted by is_gimple_operand.  */
+DEFGSCODE(GIMPLE_RAISE, "gimple_raise", GSS_RAISE)
+
 /* GIMPLE_RETURN <RETVAL> represents return statements.
 
    RETVAL is the value to return or NULL.  If a value is returned it
