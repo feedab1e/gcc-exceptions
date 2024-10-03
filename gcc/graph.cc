@@ -137,7 +137,11 @@ draw_cfg_node_succ_edges (pretty_printer *pp, int funcdef_no, basic_block bb)
       else if (e->flags & EDGE_TRUE_VALUE)
 	color = "forestgreen";
       else if (e->flags & EDGE_FALSE_VALUE)
-	color = "darkorange";
+        color = "darkorange";
+      else if (e->flags & EDGE_EH)
+          color = "purple";
+      if (e->flags & EDGE_EH)
+        style = "dashed";
 
       if (e->flags & EDGE_ABNORMAL)
 	color = "red";
@@ -149,10 +153,11 @@ draw_cfg_node_succ_edges (pretty_printer *pp, int funcdef_no, basic_block bb)
 		 funcdef_no, e->dest->index,
 		 style, color, weight,
 		 (e->flags & (EDGE_FAKE | EDGE_DFS_BACK)) ? "false" : "true");
+
+      char buffer[64];
+      e->probability.dump (buffer);
       if (e->probability.initialized_p ())
-        pp_printf (pp, ",label=\"[%i%%]\"",
-		   e->probability.to_reg_br_prob_base ()
-		   * 100 / REG_BR_PROB_BASE);
+        pp_printf (pp, ",label=\"[%s]\"", buffer);
       pp_printf (pp, "];\n");
     }
   pp_flush (pp);
