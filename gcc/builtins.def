@@ -1189,6 +1189,10 @@ DEF_BUILTIN_STUB (BUILT_IN_CXA_THROW, "__builtin_cxa_throw")
 DEF_BUILTIN_STUB (BUILT_IN_CXA_RETHROW, "__builtin_cxa_rethrow")
 DEF_BUILTIN_STUB (BUILT_IN_CXA_ALLOCATE_EXCEPTION, "__builtin_cxa_allocate_exception")
 DEF_BUILTIN_STUB (BUILT_IN_CXA_FREE_EXCEPTION, "__builtin_cxa_free_exception")
+DEF_BUILTIN_STUB (BUILT_IN_CXA_BEGIN_CATCH, "__builtin_cxa_begin_catch")
+DEF_BUILTIN_STUB (BUILT_IN_CXA_END_CATCH, "__builtin_cxa_end_catch")
+DEF_BUILTIN_STUB (BUILT_IN_CXX_BEGIN_CATCH, "__builtin_cxx_begin_catch")
+DEF_BUILTIN_STUB (BUILT_IN_CXX_END_CATCH, "__builtin_cxx_end_catch")
 
 /* __FILE__, __LINE__, __FUNCTION__ as builtins.  */
 DEF_GCC_BUILTIN (BUILT_IN_FILE, "FILE", BT_FN_CONST_STRING, ATTR_NOTHROW_LEAF_LIST)

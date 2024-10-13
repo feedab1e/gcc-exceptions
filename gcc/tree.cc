@@ -10100,6 +10100,14 @@ build_common_builtin_nodes (void)
 			BUILT_IN_EH_COPY_VALUES,
 			"__builtin_eh_copy_values", ECF_NOTHROW);
 
+  ftype = build_function_type_list (ptr_type_node, ptr_type_node, NULL_TREE);
+  local_define_builtin ("__builtin_cxx_begin_catch", ftype,
+                        BUILT_IN_CXX_BEGIN_CATCH, "__builtin_cxx_begin_catch",
+                        ECF_NOTHROW);
+
+  local_define_builtin ("__builtin_cxx_end_catch", ftype,
+                        BUILT_IN_CXX_END_CATCH, "__builtin_cxx_end_catch", 0);
+
   /* Complex multiplication and division.  These are handled as builtins
      rather than optabs because emit_library_call_value doesn't support
      complex.  Further, we can do slightly better with folding these

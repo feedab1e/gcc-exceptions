@@ -444,17 +444,21 @@ do_get_exception_ptr (void)
    exception has been handled.  */
 
 static tree
-do_begin_catch (void)
+do_begin_catch (tree ptr)
 {
   if (!begin_catch_fn)
-    /* Declare void* __cxa_begin_catch (void *) throw().  */
-    begin_catch_fn
-      = declare_library_fn ("__cxa_begin_catch",
-			    ptr_type_node, ptr_type_node, ECF_NOTHROW,
-			    ECF_TM_PURE);
+    {
+      /* Declare void* __cxa_begin_catch (void *) throw().  */
+      begin_catch_fn
+        = declare_library_fn ("__cxa_begin_catch",
+                              ptr_type_node, ptr_type_node, ECF_NOTHROW,
+                              ECF_TM_PURE);
+      builtin_info[BUILT_IN_CXA_BEGIN_CATCH].decl = begin_catch_fn;
+    }
 
-  return cp_build_function_call_nary (begin_catch_fn, tf_warning_or_error,
-				      build_exc_ptr (), NULL_TREE);
+  tree real_catch_fn = builtin_info[BUILT_IN_CXX_BEGIN_CATCH].decl;
+  return cp_build_function_call_nary (real_catch_fn, tf_warning_or_error,
+				      ptr, NULL_TREE);
 }
 
 /* Returns nonzero if cleaning up an exception of type TYPE (which can be
@@ -479,17 +483,20 @@ dtor_nothrow (tree type)
    for the current catch block if no others are currently using it.  */
 
 static tree
-do_end_catch (tree type)
+do_end_catch (tree type, tree ptr)
 {
   if (!end_catch_fn)
-    /* Declare void __cxa_end_catch ().
-       This can throw if the destructor for the exception throws.  */
-    end_catch_fn
-      = declare_library_fn ("__cxa_end_catch", void_type_node,
-			    NULL_TREE, 0, ECF_TM_PURE);
-
-  tree cleanup = cp_build_function_call_vec (end_catch_fn,
-					     NULL, tf_warning_or_error);
+    {
+      /* Declare void __cxa_end_catch ().
+         This can throw if the destructor for the exception throws.  */
+      end_catch_fn
+        = declare_library_fn ("__cxa_end_catch", void_type_node,
+                              NULL_TREE, 0, ECF_TM_PURE);
+      builtin_info[BUILT_IN_CXA_END_CATCH].decl = end_catch_fn;
+    }
+  tree real_catch_fn = builtin_info[BUILT_IN_CXX_END_CATCH].decl;
+  tree cleanup = cp_build_function_call_nary (real_catch_fn, tf_warning_or_error,
+					     ptr, NULL_TREE);
   if (cleanup != error_mark_node)
     TREE_NOTHROW (cleanup) = dtor_nothrow (type);
 
@@ -499,9 +506,9 @@ do_end_catch (tree type)
 /* This routine creates the cleanup for the current exception.  */
 
 static void
-push_eh_cleanup (tree type)
+push_eh_cleanup (tree type, tree ptr)
 {
-  finish_decl_cleanup (NULL_TREE, do_end_catch (type));
+  finish_decl_cleanup (NULL_TREE, do_end_catch (type, ptr));
 }
 
 /* Wrap EXPR in a MUST_NOT_THROW_EXPR expressing that EXPR must
@@ -649,9 +656,10 @@ expand_start_catch_block (tree decl)
 
   push_exception_context();
   /* Call __cxa_end_catch at the end of processing the exception.  */
-  push_eh_cleanup (type);
+  tree ptr = build_exc_ptr ();
+  push_eh_cleanup (type, ptr);
 
-  init = do_begin_catch ();
+  init = do_begin_catch (ptr);
 
   /* If there's no decl at all, then all we need to do is make sure
      to tell the runtime that we've begun handling the exception.  */

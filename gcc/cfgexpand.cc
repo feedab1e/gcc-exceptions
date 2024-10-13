@@ -2776,6 +2776,28 @@ expand_call_stmt (gcall *stmt)
      than setting the lhs, try to implement it using an internal function
      instead.  */
   decl = gimple_call_fndecl (stmt);
+  if (decl && called_as_built_in (decl))
+    {
+      enum built_in_function fcode = DECL_FUNCTION_CODE (decl);
+
+      switch (fcode)
+        {
+        case BUILT_IN_CXX_END_CATCH:
+        {
+          gcall *rep = gimple_build_call(builtin_info[BUILT_IN_CXA_END_CATCH].decl, 0);
+          expand_call_stmt(rep);
+          return;
+        }
+        case BUILT_IN_CXX_BEGIN_CATCH:
+        {
+          gimple_call_set_fn(stmt, build_fold_addr_expr(builtin_info[BUILT_IN_CXA_BEGIN_CATCH].decl));
+          expand_call_stmt(stmt);
+          return;
+        }
+        default:
+          break;
+        }
+    }
   if (gimple_call_lhs (stmt)
       && !gimple_has_side_effects (stmt)
       && (optimize || (decl && called_as_built_in (decl))))
