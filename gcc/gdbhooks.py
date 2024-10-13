@@ -442,7 +442,8 @@ class TreePrinter:
 
     def __init__ (self, gdbval, frombase = False):
         if gdb.types.get_basic_type(gdbval.type).code != gdb.TYPE_CODE_PTR:
-            gdbval = gdbval.address
+            if gdbval.address is not None:
+                gdbval = gdbval.address
         self.gdbval = gdbval
         self.node = Tree(gdbval)
         self.is_lang = False
@@ -962,9 +963,6 @@ class EhRegionDPrinter:
             else:
                 yield field.name, self.gdbval[field]
 
-
-
-
 ######################################################################
 # Callgraph pretty-printers
 ######################################################################
@@ -1394,7 +1392,7 @@ def build_pretty_printer():
 
                              'gimple',
                              GimplePrinter)
-    pp.add_printer_for_types(['basic_block', 'basic_block_def *'],
+    pp.add_printer_for_types(['basic_block', 'basic_block_def *', 'basic_block_def'],
                              'basic_block',
                              BasicBlockPrinter)
     pp.add_printer_for_types(['edge', 'edge_def *'],
