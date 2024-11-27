@@ -616,7 +616,7 @@ cgraph_node::add_new_function (tree fndecl, bool lowered)
   if (lowered
       && (function_needs_eh_personality (DECL_STRUCT_FUNCTION (fndecl))
 	  == eh_personality_lang))
-    DECL_FUNCTION_PERSONALITY (fndecl) = lang_hooks.eh_personality ();
+    DECL_FUNCTION_PERSONALITY (fndecl) = lang_hooks.eh.personality ();
 }
 
 /* Analyze the function scheduled to be output.  */

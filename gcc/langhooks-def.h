@@ -38,7 +38,6 @@ class substring_loc;
 extern void lhd_do_nothing (void);
 extern void lhd_do_nothing_t (tree);
 extern void lhd_do_nothing_f (struct function *);
-extern tree lhd_pass_through_t (tree);
 extern void lhd_register_dumps (gcc::dump_manager *);
 extern bool lhd_post_options (const char **);
 extern alias_set_type lhd_get_alias_set (tree);
@@ -140,11 +139,7 @@ extern const char *lhd_get_sarif_source_language (const char *);
 #define LANG_HOOKS_EXPR_TO_DECL		lhd_expr_to_decl
 #define LANG_HOOKS_TO_TARGET_CHARSET	lhd_to_target_charset
 #define LANG_HOOKS_INIT_TS		lhd_do_nothing
-#define LANG_HOOKS_EH_PERSONALITY	lhd_gcc_personality
-#define LANG_HOOKS_EH_RUNTIME_TYPE	lhd_pass_through_t
-#define LANG_HOOKS_EH_PROTECT_CLEANUP_ACTIONS	NULL
 #define LANG_HOOKS_BLOCK_MAY_FALLTHRU	hook_bool_const_tree_true
-#define LANG_HOOKS_EH_USE_CXA_END_CLEANUP	false
 #define LANG_HOOKS_DEEP_UNSHARING	false
 #define LANG_HOOKS_CUSTOM_FUNCTION_DESCRIPTORS	false
 #define LANG_HOOKS_EMITS_BEGIN_STMT	false
@@ -328,6 +323,33 @@ extern void lhd_end_section (void);
   LANG_HOOKS_END_SECTION \
 }
 
+/* EH hooks.  */
+extern tree lhd_pass_through_t (tree);
+extern bool lhd_catches_untyped (tree, tree);
+extern void lhd_lower_eh_abort (gimple *);
+
+#define LANG_HOOKS_EH_PROTECT_CLEANUP_ACTIONS	NULL
+#define LANG_HOOKS_EH_USE_CXA_END_CLEANUP	false
+#define LANG_HOOKS_EH_PERSONALITY	lhd_gcc_personality
+#define LANG_HOOKS_EH_RUNTIME_TYPE	lhd_pass_through_t
+#define LANG_HOOKS_EH_CAN_CATCH         lhd_catches_untyped
+#define LANG_HOOKS_EH_EMIT_RETHROW      lhd_lower_eh_abort
+#define LANG_HOOKS_EH_EMIT_THROW        lhd_lower_eh_abort
+#define LANG_HOOKS_EH_EMIT_BEGIN_CATCH  lhd_lower_eh_abort
+#define LANG_HOOKS_EH_EMIT_END_CATCH    lhd_lower_eh_abort
+
+#define LANG_HOOKS_EH { \
+  LANG_HOOKS_EH_PROTECT_CLEANUP_ACTIONS, \
+  LANG_HOOKS_EH_USE_CXA_END_CLEANUP, \
+  LANG_HOOKS_EH_PERSONALITY, \
+  LANG_HOOKS_EH_RUNTIME_TYPE, \
+  LANG_HOOKS_EH_CAN_CATCH, \
+  LANG_HOOKS_EH_EMIT_RETHROW, \
+  LANG_HOOKS_EH_EMIT_THROW, \
+  LANG_HOOKS_EH_EMIT_BEGIN_CATCH, \
+  LANG_HOOKS_EH_EMIT_END_CATCH, \
+}
+
 /* The whole thing.  The structure is defined in langhooks.h.  */
 #define LANG_HOOKS_INITIALIZER { \
   LANG_HOOKS_NAME, \
@@ -371,6 +393,7 @@ extern void lhd_end_section (void);
   LANG_HOOKS_DECLS, \
   LANG_HOOKS_FOR_TYPES_INITIALIZER, \
   LANG_HOOKS_LTO, \
+  LANG_HOOKS_EH, \
   LANG_HOOKS_GET_INNERMOST_GENERIC_PARMS, \
   LANG_HOOKS_GET_INNERMOST_GENERIC_ARGS, \
   LANG_HOOKS_FUNCTION_PARAMETER_PACK_P, \
@@ -380,11 +403,7 @@ extern void lhd_end_section (void);
   LANG_HOOKS_SIMULATE_BUILTIN_FUNCTION_DECL, \
   LANG_HOOKS_INIT_TS,          \
   LANG_HOOKS_EXPR_TO_DECL, \
-  LANG_HOOKS_EH_PERSONALITY, \
-  LANG_HOOKS_EH_RUNTIME_TYPE, \
-  LANG_HOOKS_EH_PROTECT_CLEANUP_ACTIONS, \
   LANG_HOOKS_BLOCK_MAY_FALLTHRU, \
-  LANG_HOOKS_EH_USE_CXA_END_CLEANUP, \
   LANG_HOOKS_DEEP_UNSHARING, \
   LANG_HOOKS_CUSTOM_FUNCTION_DESCRIPTORS, \
   LANG_HOOKS_EMITS_BEGIN_STMT, \

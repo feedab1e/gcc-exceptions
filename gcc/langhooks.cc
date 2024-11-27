@@ -131,6 +131,18 @@ lhd_warn_unused_global_decl (const_tree decl)
   return true;
 }
 
+/* is true only if the exception handler has no type */
+extern bool lhd_catches_untyped (tree type, tree clause)
+{
+  return !clause;
+}
+
+/* Dies when trying to lower any eh primitive */
+extern void lhd_lower_eh_abort (gimple *stmt)
+{
+  abort ();
+}
+
 /* Set the DECL_ASSEMBLER_NAME for DECL.  */
 void
 lhd_set_decl_assembler_name (tree decl)

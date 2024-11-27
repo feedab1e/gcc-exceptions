@@ -41,7 +41,7 @@ static tree do_allocate_exception (tree);
 static tree wrap_cleanups_r (tree *, int *, void *);
 static bool is_admissible_throw_operand_or_catch_parameter (tree, bool,
 							    tsubst_flags_t);
-static bool can_convert_eh (tree to, tree from, bool = true);
+bool can_convert_eh (tree to, tree from, bool = true);
 
 static int
 cmp_eh_types (tree a, tree b)
@@ -429,12 +429,14 @@ do_get_exception_ptr (void)
 {
   if (!get_exception_ptr_fn)
     /* Declare void* __cxa_get_exception_ptr (void *) throw().  */
-    get_exception_ptr_fn
-      = declare_library_fn ("__cxa_get_exception_ptr",
-			    ptr_type_node, ptr_type_node,
-			    ECF_NOTHROW | ECF_PURE | ECF_LEAF | ECF_TM_PURE,
-			    0);
-
+    {
+      get_exception_ptr_fn
+       = declare_library_fn ("__cxa_get_exception_ptr",
+                             ptr_type_node, ptr_type_node,
+                             ECF_NOTHROW | ECF_PURE | ECF_LEAF | ECF_TM_PURE,
+                             0);
+      builtin_info[BUILT_IN_CXA_EH_POINTER].decl = get_exception_ptr_fn;
+    }
   return cp_build_function_call_nary (get_exception_ptr_fn,
 				      tf_warning_or_error,
 				      build_exc_ptr (), NULL_TREE);
@@ -1255,7 +1257,7 @@ bool check_unambiguous_eh_cast(tree to, tree from) {
 /* Returns nonzero if an exception of type FROM will be caught by a
    handler for type TO, as per [except.handle].  */
 
-static bool
+bool
 can_convert_eh (tree to, tree from, bool strict)
 {
   to = non_reference (to);

@@ -1884,6 +1884,7 @@ void pop_exception_context (bool = true);
 void save_exception_list ();
 tree merge_exception_specs (tree *, int);
 bool check_agains_spec (tree, tree, bool);
+bool can_convert_eh (tree, tree, bool);
 
 /* Global state.  */
 

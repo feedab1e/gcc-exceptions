@@ -1193,6 +1193,7 @@ DEF_BUILTIN_STUB (BUILT_IN_CXA_BEGIN_CATCH, "__builtin_cxa_begin_catch")
 DEF_BUILTIN_STUB (BUILT_IN_CXA_END_CATCH, "__builtin_cxa_end_catch")
 DEF_BUILTIN_STUB (BUILT_IN_CXX_BEGIN_CATCH, "__builtin_cxx_begin_catch")
 DEF_BUILTIN_STUB (BUILT_IN_CXX_END_CATCH, "__builtin_cxx_end_catch")
+DEF_BUILTIN_STUB (BUILT_IN_CXA_EH_POINTER, "__builtin_cxa_get_exception_pointer")
 
 /* __FILE__, __LINE__, __FUNCTION__ as builtins.  */
 DEF_GCC_BUILTIN (BUILT_IN_FILE, "FILE", BT_FN_CONST_STRING, ATTR_NOTHROW_LEAF_LIST)

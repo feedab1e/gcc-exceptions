@@ -354,6 +354,43 @@ struct lang_hooks_for_lto
   void (*end_section) (void);
 };
 
+struct lang_hooks_for_eh
+{
+  /* If non-NULL, this is a function that returns a function decl to be
+     executed if an unhandled exception is propagated out of a cleanup
+     region.  For example, in C++, an exception thrown by a destructor
+     during stack unwinding is required to result in a call to
+     `std::terminate', so the C++ version of this function returns a
+     FUNCTION_DECL for `std::terminate'.  */
+  tree (*protect_cleanup_actions) (void);
+
+  /* True if this language uses __cxa_end_cleanup when the ARM EABI
+     is enabled.  */
+  bool use_cxa_end_cleanup;
+
+  /* The EH personality function decl.  */
+  tree (*personality) (void);
+
+  /* Map a type to a runtime object to match type.  */
+  tree (*runtime_type) (tree);
+
+  /* determine if an exception of type TYPE can be caught using a clause of type
+     CLAUSE. */
+  bool (*can_catch) (tree type, tree clause);
+
+  /* transform a graise into a call to a runtime function */
+  void (*emit_rethrow) (gimple *source);
+
+  /* transform a graise into a call to a runtime function */
+  void (*emit_throw) (gimple *source);
+
+  /* transform a gbegcatch into a call to a runtime function */
+  void (*emit_begin_catch) (gimple *source);
+
+  /* transform a gendcatch into a call to a runtime function */
+  void (*emit_end_catch) (gimple *source);
+};
+
 /* Language-specific hooks.  See langhooks-def.h for defaults.  */
 
 struct lang_hooks
@@ -544,6 +581,8 @@ struct lang_hooks
   
   struct lang_hooks_for_lto lto;
 
+  struct lang_hooks_for_eh eh;
+
   /* Returns a TREE_VEC of the generic parameters of an instantiation of
      a generic type or decl, e.g. C++ template instantiation.  If
      TREE_CHAIN of the return value is set, it is an INTEGER_CST
@@ -589,27 +628,9 @@ struct lang_hooks
      if in the process TREE_CONSTANT or TREE_SIDE_EFFECTS need updating.  */
   tree (*expr_to_decl) (tree expr, bool *tc, bool *se);
 
-  /* The EH personality function decl.  */
-  tree (*eh_personality) (void);
-
-  /* Map a type to a runtime object to match type.  */
-  tree (*eh_runtime_type) (tree);
-
-  /* If non-NULL, this is a function that returns a function decl to be
-     executed if an unhandled exception is propagated out of a cleanup
-     region.  For example, in C++, an exception thrown by a destructor
-     during stack unwinding is required to result in a call to
-     `std::terminate', so the C++ version of this function returns a
-     FUNCTION_DECL for `std::terminate'.  */
-  tree (*eh_protect_cleanup_actions) (void);
-
   /* Return true if a stmt can fallthru.  Used by block_may_fallthru
      to possibly handle language trees.  */
   bool (*block_may_fallthru) (const_tree);
-
-  /* True if this language uses __cxa_end_cleanup when the ARM EABI
-     is enabled.  */
-  bool eh_use_cxa_end_cleanup;
 
   /* True if this language requires deep unsharing of tree nodes prior to
      gimplification.  */

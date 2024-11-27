@@ -1006,9 +1006,9 @@ honor_protect_cleanup_actions (struct leh_state *outer_state,
   else
     {
       /* First check for nothing to do.  */
-      if (lang_hooks.eh_protect_cleanup_actions == NULL)
+      if (lang_hooks.eh.protect_cleanup_actions == NULL)
 	return;
-      tree actions = lang_hooks.eh_protect_cleanup_actions ();
+      tree actions = lang_hooks.eh.protect_cleanup_actions ();
       if (actions == NULL)
 	return;
 
@@ -2219,7 +2219,7 @@ pass_lower_eh::execute (function *fun)
   if (function_needs_eh_personality (fun) == eh_personality_lang
       && !DECL_FUNCTION_PERSONALITY (current_function_decl))
     DECL_FUNCTION_PERSONALITY (current_function_decl)
-      = lang_hooks.eh_personality ();
+      = lang_hooks.eh.personality ();
 
   return 0;
 }
@@ -4915,7 +4915,120 @@ make_pass_cleanup_eh (gcc::context *ctxt)
 {
   return new pass_cleanup_eh (ctxt);
 }
-
+
+static bool
+try_handle_one_path (function *ifun, graise *stmt, gcall *begin_catch, basic_block bb)
+{
+  while (true)
+    {
+      start:
+      for (auto gsi = gsi_start_bb (bb); !gsi_end_p (gsi); gsi_next (&gsi))
+        {
+          if (!begin_catch)
+            {
+              if (gcall *stmt = dyn_cast<gcall *>(gsi_stmt(gsi)))
+                if (gimple_call_fndecl(stmt) == builtin_info[BUILT_IN_CXX_BEGIN_CATCH].decl)
+                  begin_catch = stmt;
+            }
+          else
+            {
+              if (gcall *stmt = dyn_cast<gcall *>(gsi_stmt(gsi)))
+                if (gimple_call_fndecl(stmt) == builtin_info[BUILT_IN_CXX_END_CATCH].decl)
+                  {
+                    gcall *orig_def = safe_as_a<gcall *>(SSA_NAME_DEF_STMT(gimple_call_arg(begin_catch, 0)));
+                    gcall *new_def = safe_as_a<gcall *>(SSA_NAME_DEF_STMT(gimple_call_arg(stmt, 0)));
+                    gcc_assert (gimple_call_fndecl (orig_def) == builtin_info[BUILT_IN_EH_POINTER].decl);
+                    gcc_assert (gimple_call_fndecl (new_def) == builtin_info[BUILT_IN_EH_POINTER].decl);
+                    int orig_desc = TREE_INT_CST_LOW(gimple_call_arg(orig_def, 0));
+                    int new_desc = TREE_INT_CST_LOW(gimple_call_arg(new_def, 0));
+                    if (orig_desc == new_desc)
+                      return true;
+                  }
+            }
+        }
+      vec<edge, va_gc> *succs = bb->succs;
+      if (!EDGE_COUNT(succs))
+        return false;
+      edge_iterator ei;
+      edge current;
+      FOR_EACH_EDGE(current, ei, succs)
+        {
+          if (current->flags & EDGE_EH)
+            {
+              bb = current->dest;
+              goto start;
+            }
+        }
+
+      bool success = true;
+      FOR_EACH_EDGE(current, ei, succs)
+      {
+        success &= (!try_handle_one_path(ifun, stmt, begin_catch, current->dest));
+      }
+      return success;
+    }
+
+}
+
+static void
+execute_kill_eh_1 (function *ifun)
+{
+  basic_block bb;
+  FOR_EACH_BB_FN(bb, ifun)
+    {
+      if (graise *stmt = dyn_cast<graise *> (gimple_seq_last (bb_seq (bb))))
+        try_handle_one_path(ifun, stmt, NULL, bb);
+    }
+}
+
+namespace {
+
+const pass_data pass_data_kill_eh =
+{
+  GIMPLE_PASS, /* type */
+  "ehkill", /* name */
+  OPTGROUP_NONE, /* optinfo_flags */
+  TV_TREE_EH, /* tv_id */
+  ( PROP_cfg | PROP_gimple_leh | PROP_ssa ), /* properties_required */
+  0, /* properties_provided */
+  0, /* properties_destroyed */
+  0, /* todo_flags_start */
+  0, /* todo_flags_finish */
+};
+
+class pass_kill_eh : public gimple_opt_pass
+{
+public:
+  pass_kill_eh (gcc::context *ctxt)
+    : gimple_opt_pass (pass_data_cleanup_eh, ctxt)
+  {}
+
+  /* opt_pass methods: */
+  opt_pass * clone () final override { return new pass_kill_eh (m_ctxt); }
+  bool gate (function *fun) final override
+  {
+    return fun->eh != NULL && fun->eh->region_tree != NULL;
+  }
+
+  unsigned int execute (function *) final override;
+
+}; // class pass_cleanup_eh
+
+unsigned int
+pass_kill_eh::execute (function *fun)
+{
+  execute_kill_eh_1 (fun);
+  return TODO_cleanup_cfg | TODO_verify_il;
+}
+
+} // anon namespace
+
+gimple_opt_pass *
+make_pass_kill_eh (gcc::context *ctxt)
+{
+  return new pass_kill_eh (ctxt);
+}
+
 /* Disable warnings about missing quoting in GCC diagnostics for
    the verification errors.  Their format strings don't follow GCC
    diagnostic conventions but are only used for debugging.  */

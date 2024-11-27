@@ -8452,8 +8452,8 @@ maybe_catch_exception (gimple_seq body)
   if (!flag_exceptions)
     return body;
 
-  if (lang_hooks.eh_protect_cleanup_actions != NULL)
-    decl = lang_hooks.eh_protect_cleanup_actions ();
+  if (lang_hooks.eh.protect_cleanup_actions != NULL)
+    decl = lang_hooks.eh.protect_cleanup_actions ();
   else
     decl = builtin_decl_explicit (BUILT_IN_TRAP);
 

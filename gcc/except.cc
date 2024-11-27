@@ -385,7 +385,7 @@ gen_eh_region (enum eh_region_type type, eh_region outer)
   vec_safe_push (cfun->eh->region_array, new_eh);
 
   /* Copy the language's notion of whether to use __cxa_end_cleanup.  */
-  if (targetm.arm_eabi_unwinder && lang_hooks.eh_use_cxa_end_cleanup)
+  if (targetm.arm_eabi_unwinder && lang_hooks.eh.use_cxa_end_cleanup)
     new_eh->use_cxa_end_cleanup = true;
 
   return new_eh;
@@ -680,7 +680,7 @@ add_type_for_runtime (tree type)
   bool existed = false;
   tree *slot = &type_to_runtime_map->get_or_insert (type, &existed);
   if (!existed)
-    *slot = lang_hooks.eh_runtime_type (type);
+    *slot = lang_hooks.eh.runtime_type (type);
 }
 
 tree

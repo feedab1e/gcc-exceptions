@@ -31,6 +31,7 @@ enum c_language_kind c_language = clk_cxx;
 static const char * cxx_dwarf_name (tree t, int verbosity);
 static enum classify_record cp_classify_record (tree type);
 static tree cp_eh_personality (void);
+static bool cp_eh_adequate_handler (tree, tree);
 static tree get_template_innermost_arguments_folded (const_tree);
 static tree get_template_argument_pack_elems_folded (const_tree);
 static tree cxx_enum_underlying_base_type (const_tree);
@@ -78,6 +79,8 @@ static const char *cp_get_sarif_source_language (const char *);
 #define LANG_HOOKS_EH_PERSONALITY cp_eh_personality
 #undef LANG_HOOKS_EH_RUNTIME_TYPE
 #define LANG_HOOKS_EH_RUNTIME_TYPE build_eh_type_type
+#undef LANG_HOOKS_EH_CAN_CATCH
+#define LANG_HOOKS_EH_CAN_CATCH cp_eh_adequate_handler
 #undef LANG_HOOKS_ENUM_UNDERLYING_BASE_TYPE
 #define LANG_HOOKS_ENUM_UNDERLYING_BASE_TYPE cxx_enum_underlying_base_type
 #undef LANG_HOOKS_PREPROCESS_MAIN_FILE
@@ -162,6 +165,12 @@ cp_eh_personality (void)
     cp_eh_personality_decl = build_personality_function ("gxx");
 
   return cp_eh_personality_decl;
+}
+
+bool
+cp_eh_adequate_handler (tree type, tree handler)
+{
+  return can_convert_eh (type, handler, false);
 }
 
 /* This is a subroutine of fold_cplus_constants.  It returns TRUE if T

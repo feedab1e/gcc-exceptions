@@ -1878,7 +1878,7 @@ finish_handler_parms (tree decl, tree handler)
     }
   else
     {
-      type = expand_start_catch_block (decl);
+      type = TYPE_CHECK (expand_start_catch_block (decl));
       if (warn_catch_value
 	  && type != NULL_TREE
 	  && type != error_mark_node
@@ -1903,6 +1903,7 @@ finish_handler_parms (tree decl, tree handler)
 			"catching non-reference type %q#T", orig_type);
 	}
     }
+  CATCH_EXPR;
   HANDLER_TYPE (handler) = type;
 }
 

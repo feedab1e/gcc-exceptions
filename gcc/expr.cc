@@ -14035,7 +14035,7 @@ get_personality_function (tree decl)
 
   if (!personality
       && pk == eh_personality_any)
-    personality = lang_hooks.eh_personality ();
+    personality = lang_hooks.eh.personality ();
 
   if (pk == eh_personality_lang)
     gcc_assert (personality != NULL_TREE);
